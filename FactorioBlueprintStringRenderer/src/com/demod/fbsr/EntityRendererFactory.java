@@ -22,8 +22,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.luaj.vm2.LuaValue;
 
 import com.demod.factorio.DataTable;
@@ -277,7 +277,7 @@ public class EntityRendererFactory {
 			if (!beacons.isEmpty()) {
 				Map<String, Double> beaconModules = new LinkedHashMap<>();
 				for (BlueprintEntity beacon : beacons) {
-					double distributionEffectivity = beacon.json().getDouble("distribution_effectivity");
+					double distributionEffectivity = beacon.json().path("distribution_effectivity").doubleValue();
 					Optional<Multiset<String>> modulesOpt2 = RenderUtils.getModules(beacon, table);
 					if (modulesOpt2.isPresent()) {
 						Multiset<String> modules = modulesOpt2.get();
@@ -369,56 +369,66 @@ public class EntityRendererFactory {
 			BlueprintEntity entity, EntityPrototype prototype) {
 		int entityId = entity.getId();
 
-		JSONObject connectionsJson = entity.json().optJSONObject("connections");
-		if (connectionsJson != null) {
-			Utils.forEach(connectionsJson, (String circuitIdStr, Object connection) -> {
-				if (connection instanceof JSONObject) {
-					JSONObject connectionJson = (JSONObject) connection;
-					int circuitId = Integer.parseInt(circuitIdStr);
-					Utils.forEach(connectionJson, (String colorName, JSONArray wiresJson) -> {
-						Utils.forEach(wiresJson, (JSONObject wireJson) -> {
-							int targetCircuitId = wireJson.optInt("circuit_id", 1);
-							int targetEntityId = wireJson.getInt("entity_id");
+		JsonNode connectionsJson = entity.json().path("connections");
+		if (!connectionsJson.isMissingNode()) {
+			connectionsJson.fields().forEachRemaining(new Consumer<Entry<String, JsonNode>>() {
+				@Override
+				public void accept(Entry<String, JsonNode> entry) {
+					String circuitIdStr = entry.getKey();
+					JsonNode connection = entry.getValue();
+					if (connection.isObject()) {
+						ObjectNode connectionJson = (ObjectNode) connection;
+						int circuitId = Integer.parseInt(circuitIdStr);
+						connectionJson.fields().forEachRemaining(new Consumer<Entry<String, JsonNode>>() {
+							@Override
+							public void accept(Entry<String, JsonNode> entry) {
+								String colorName = entry.getKey();
+								JsonNode wiresJson = entry.getValue();
+								for (JsonNode wireJson : wiresJson) {
+									int targetCircuitId = wireJson.path("circuit_id").asInt(1);
+									int targetEntityId = wireJson.path("entity_id").intValue();
 
-							String key;
-							if (entityId < targetEntityId) {
-								key = entityId + "|" + circuitId + "|" + targetEntityId + "|" + targetCircuitId + "|"
-										+ colorName;
-							} else {
-								key = targetEntityId + "|" + targetCircuitId + "|" + entityId + "|" + circuitId + "|"
-										+ colorName;
-							}
+									String key;
+									if (entityId < targetEntityId) {
+										key = entityId + "|" + circuitId + "|" + targetEntityId + "|" + targetCircuitId + "|"
+												+ colorName;
+									} else {
+										key = targetEntityId + "|" + targetCircuitId + "|" + entityId + "|" + circuitId + "|"
+												+ colorName;
+									}
 
-							if (!map.hasWire(key)) {
-								map.setWire(key,
-										new SimpleEntry<>(getWirePositionFor(entity, prototype, colorName, circuitId),
-												new Point2D.Double()));
+									if (!map.hasWire(key)) {
+										map.setWire(key,
+												new SimpleEntry<>(getWirePositionFor(entity, prototype, colorName, circuitId),
+														new Point2D.Double()));
 
-							} else {
-								Entry<Point2D.Double, Point2D.Double> pair = map.getWire(key);
+									} else {
+										Entry<Point2D.Double, Point2D.Double> pair = map.getWire(key);
 
-								Point2D.Double p1 = pair.getKey();
-								Point2D.Double p2 = pair.getValue();
-								p2.setLocation(getWirePositionFor(entity, prototype, colorName, circuitId));
+										Point2D.Double p1 = pair.getKey();
+										Point2D.Double p2 = pair.getValue();
+										p2.setLocation(getWirePositionFor(entity, prototype, colorName, circuitId));
 
-								Color color;
-								switch (colorName) {
-								case "red":
-									color = Color.red.darker();
-									break;
-								case "green":
-									color = Color.green.darker();
-									break;
-								default:
-									System.err.println("UNKNOWN COLOR NAME: " + colorName);
-									color = Color.magenta;
-									break;
+										Color color;
+										switch (colorName) {
+											case "red":
+												color = Color.red.darker();
+												break;
+											case "green":
+												color = Color.green.darker();
+												break;
+											default:
+												System.err.println("UNKNOWN COLOR NAME: " + colorName);
+												color = Color.magenta;
+												break;
+										}
+
+										register.accept(RenderUtils.createWireRenderer(p1, p2, color));
+									}
 								}
-
-								register.accept(RenderUtils.createWireRenderer(p1, p2, color));
 							}
 						});
-					});
+					}
 				}
 			});
 		}

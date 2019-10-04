@@ -26,10 +26,14 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.text.similarity.LevenshteinDistance;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.luaj.vm2.LuaValue;
 
 import com.demod.dcba.CommandHandler;
@@ -83,7 +87,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 
 	private DiscordBot bot;
 
-	private JSONObject configJson;
+	private JsonNode configJson;
 
 	private String reportingUserID;
 	private String reportingChannelID;
@@ -355,13 +359,10 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 			List<Blueprint> blueprints = blueprintStrings.stream().flatMap(bs -> bs.getBlueprints().stream())
 					.collect(Collectors.toList());
 
-			JSONObject json = new JSONObject();
-			Utils.terribleHackToHaveOrderedJSONObject(json);
-			JSONObject bookJson = new JSONObject();
-			Utils.terribleHackToHaveOrderedJSONObject(bookJson);
-			json.put("blueprint_book", bookJson);
-			JSONArray blueprintsJson = new JSONArray();
-			bookJson.put("blueprints", blueprintsJson);
+			ObjectMapper objectMapper = new ObjectMapper();
+			ObjectNode json = objectMapper.createObjectNode();
+			ObjectNode bookJson = json.putObject("blueprint_book");
+			ArrayNode blueprintsJson = bookJson.putArray("blueprints");
 			bookJson.put("item", "blueprint-book");
 			bookJson.put("active_index", 0);
 
@@ -378,7 +379,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 					}
 				}
 
-				blueprintsJson.put(blueprint.json());
+				blueprintsJson.add(blueprint.json());
 
 				index++;
 			}
@@ -646,7 +647,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 		List<String> results = BlueprintFinder.searchRaw(content, reporting);
 		if (!results.isEmpty()) {
 			try {
-				byte[] bytes = BlueprintStringData.decode(results.get(0)).toString(2).getBytes();
+				byte[] bytes = getBytes(BlueprintStringData.decode(results.get(0)));
 				if (results.size() == 1) {
 					URL url = WebUtils.uploadToHostingService("blueprint.json", bytes);
 					event.getChannel().sendMessage("Blueprint JSON: " + url.toString()).complete();
@@ -658,7 +659,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 							try {
 								String blueprintString = results.get(i);
 								zos.putNextEntry(new ZipEntry("blueprint " + (i + 1) + ".json"));
-								zos.write(BlueprintStringData.decode(blueprintString).toString(2).getBytes());
+								zos.write(getBytes(BlueprintStringData.decode(blueprintString)));
 							} catch (Exception e) {
 								reporting.addException(e);
 							}
@@ -686,6 +687,12 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 			event.getChannel().sendMessage("I can't seem to find any blueprints. :frowning:").complete();
 		}
 		sendReport(event, reporting);
+	}
+
+	private byte[] getBytes(JsonNode jsonNode) throws JsonProcessingException {
+		ObjectWriter objectWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
+		String string = objectWriter.writeValueAsString(jsonNode);
+		return string.getBytes();
 	}
 
 	private void handleBlueprintUpgradeBeltsCommand(MessageReceivedEvent event) {
@@ -722,7 +729,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 					reporting
 							.addInfo(WebUtils
 									.uploadToHostingService("blueprint.txt",
-											BlueprintStringData.encode(blueprintStringData.json()).getBytes())
+											BlueprintStringData.encode((ObjectNode) blueprintStringData.json()).getBytes())
 									.toString());
 				} catch (IOException e) {
 					reporting.addException(e);
@@ -841,14 +848,17 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 
 	private void sendLuaDumpFile(MessageReceivedEvent event, String category, String name, LuaValue lua,
 			TaskReporting reporting) throws IOException {
-		JSONObject json = new JSONObject();
-		Utils.terribleHackToHaveOrderedJSONObject(json);
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode json = objectMapper.createObjectNode();
 		json.put("name", name);
 		json.put("category", category);
 		json.put("version", FBSR.getVersion());
-		json.put("data", Utils.<JSONObject>convertLuaToJson(lua));
+		JsonNode oldData = json.replace("data", Utils.<ObjectNode>convertLuaToJson(lua));
+		assert oldData == null;
+		ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
+		String string = objectWriter.writeValueAsString(json);
 		URL url = WebUtils.uploadToHostingService(category + "_" + name + "_dump_" + FBSR.getVersion() + ".json",
-				json.toString(2).getBytes());
+				string.getBytes());
 		event.getChannel().sendMessage(category + " " + name + " lua dump: " + url.toString()).complete();
 		reporting.addLink(url.toString());
 	}
@@ -897,7 +907,7 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 
 	@Override
 	protected void startUp() throws JSONException, IOException {
-		configJson = Config.get().getJSONObject("discord");
+		configJson = Config.get().path("discord");
 
 		DataTable table = FactorioData.getTable();
 		System.out.println("Factorio " + FBSR.getVersion() + " Data Loaded.");
@@ -964,9 +974,9 @@ public class BlueprintBotDiscordService extends AbstractIdleService {
 
 		bot.startAsync().awaitRunning();
 
-		reportingUserID = configJson.getString("reporting_user_id");
-		reportingChannelID = configJson.getString("reporting_channel_id");
-		hostingChannelID = configJson.getString("hosting_channel_id");
+		reportingUserID = configJson.path("reporting_user_id").textValue();
+		reportingChannelID = configJson.path("reporting_channel_id").textValue();
+		hostingChannelID = configJson.path("hosting_channel_id").textValue();
 
 		ServiceFinder.addService(this);
 		ServiceFinder.addService(WatchdogReporter.class, new WatchdogReporter() {

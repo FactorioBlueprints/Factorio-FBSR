@@ -1,11 +1,6 @@
 package com.demod.fbsr;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
-import java.awt.Stroke;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -14,10 +9,16 @@ import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.function.Consumer;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.LinkedHashMultiset;
+import com.google.common.collect.Multiset;
 import org.luaj.vm2.LuaValue;
 
 import com.demod.factorio.DataTable;
@@ -27,9 +28,6 @@ import com.demod.factorio.prototype.EntityPrototype;
 import com.demod.factorio.prototype.ItemPrototype;
 import com.demod.factorio.prototype.TilePrototype;
 import com.demod.fbsr.Renderer.Layer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.LinkedHashMultiset;
-import com.google.common.collect.Multiset;
 
 public final class RenderUtils {
 	public static final BufferedImage EMPTY_IMAGE = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -148,15 +146,22 @@ public final class RenderUtils {
 
 		Multiset<String> modules = LinkedHashMultiset.create();
 
-		Object itemsJson = entity.json().get("items");
-		if (itemsJson instanceof JSONObject) {
-			Utils.forEach(entity.json().getJSONObject("items"), (String itemName, Integer count) -> {
-				modules.add(itemName, count);
+		JsonNode itemsJson = entity.json().path("items");
+		if (itemsJson instanceof ObjectNode) {
+			itemsJson.fields().forEachRemaining(new Consumer<Entry<String, JsonNode>>() {
+				@Override
+				public void accept(Entry<String, JsonNode> entry) {
+					String itemName = entry.getKey();
+					int count = entry.getValue().intValue();
+					modules.add(itemName, count);
+				}
 			});
-		} else if (itemsJson instanceof JSONArray) {
-			Utils.<JSONObject>forEach(entity.json().getJSONArray("items"), j -> {
-				modules.add(j.getString("item"), j.getInt("count"));
-			});
+		} else if (itemsJson instanceof ArrayNode) {
+			for (JsonNode jsonNode : itemsJson) {
+				String item = jsonNode.path("item").textValue();
+				int count = jsonNode.path("count").intValue();
+				modules.add(item, count);
+			}
 		}
 
 		modules.entrySet().removeIf(e -> {
@@ -251,9 +256,12 @@ public final class RenderUtils {
 		}
 	}
 
-	public static Color parseColor(JSONObject json) {
-		return new Color((float) json.getDouble("r"), (float) json.getDouble("g"), (float) json.getDouble("b"),
-				(float) json.getDouble("a"));
+	public static Color parseColor(JsonNode json) {
+		return new Color(
+				json.path("r").floatValue(),
+				json.path("g").floatValue(),
+				json.path("b").floatValue(),
+				json.path("a").floatValue());
 	}
 
 	public static BufferedImage scaleImage(BufferedImage image, int width, int height) {

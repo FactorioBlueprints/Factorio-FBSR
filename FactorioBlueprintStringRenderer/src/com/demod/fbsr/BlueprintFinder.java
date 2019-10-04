@@ -7,19 +7,22 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipException;
 
-import org.json.JSONObject;
-
 import com.demod.factorio.Utils;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 public final class BlueprintFinder {
@@ -69,13 +72,17 @@ public final class BlueprintFinder {
 				m -> "https://gitlab.com/snippets/" + m.group("id") + "/raw"), //
 
 		GIST("gist\\.github\\.com/[-a-zA-Z0-9]+/(?<id>[a-z0-9]+)", (m, l) -> {
-			JSONObject response = WebUtils.readJsonFromURL("https://api.github.com/gists/" + m.group("id"));
-			JSONObject filesJson = response.getJSONObject("files");
-			Utils.<JSONObject>forEach(filesJson, (k, v) -> {
-				if (v.getString("type").startsWith("text/plain")) {
-					l.handleURL(v.getString("raw_url"));
+			JsonNode response = WebUtils.readJsonFromURL("https://api.github.com/gists/" + m.group("id"));
+			JsonNode filesJson = response.path("files");
+			for (JsonNode v : filesJson) {
+				JsonNode type = v.path("type");
+				assert type.isTextual();
+				if (type.textValue().startsWith("text/plain")) {
+					JsonNode rawUrl = v.path("raw_url");
+					assert rawUrl.isTextual();
+					l.handleURL(rawUrl.textValue());
 				}
-			});
+			}
 		}), //
 
 		DROPBOX("\\b(?<url>https://www\\.dropbox\\.com/s/[^\\s?]+)", m -> m.group("url") + "?raw=1"), //

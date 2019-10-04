@@ -37,8 +37,8 @@ public class ArithmeticCombinatorRendering extends EntityRendererFactory {
 		List<Sprite> sprites = RenderUtils.getSpritesFromAnimation(
 				prototype.lua().get("sprites").get(entity.getDirection().name().toLowerCase()));
 		Sprite operatorSprite = RenderUtils.getSpriteFromAnimation(prototype.lua()
-				.get(operationSprites.get(entity.json().getJSONObject("control_behavior")
-						.getJSONObject("arithmetic_conditions").getString("operation")))
+				.get(operationSprites.get(entity.json().path("control_behavior")
+						.path("arithmetic_conditions").path("operation").textValue()))
 				.get(entity.getDirection().name().toLowerCase()));
 
 		register.accept(RenderUtils.spriteRenderer(sprites, entity, prototype));

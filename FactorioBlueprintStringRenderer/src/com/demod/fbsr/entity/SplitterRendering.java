@@ -61,7 +61,7 @@ public class SplitterRendering extends EntityRendererFactory {
 		Point2D.Double rightPos = dir.right().offset(pos, 0.5);
 
 		if (entity.json().has("input_priority")) {
-			boolean right = entity.json().getString("input_priority").equals("right");
+			boolean right = entity.json().path("input_priority").textValue().equals("right");
 			Point2D.Double inputPos = dir.offset(right ? rightPos : leftPos, 0);
 
 			register.accept(new Renderer(Layer.OVERLAY3, inputPos) {
@@ -92,12 +92,12 @@ public class SplitterRendering extends EntityRendererFactory {
 		}
 
 		if (entity.json().has("output_priority")) {
-			boolean right = entity.json().getString("output_priority").equals("right");
+			boolean right = entity.json().path("output_priority").textValue().equals("right");
 			Point2D.Double outputPos = dir.offset(right ? rightPos : leftPos, 0.6);
 
 			if (entity.json().has("filter")) {
 				Point2D.Double iconPos = right ? rightPos : leftPos;
-				String itemName = entity.json().getString("filter");
+				String itemName = entity.json().path("filter").textValue();
 				Sprite spriteIcon = new Sprite();
 				Optional<ItemPrototype> optItem = dataTable.getItem(itemName);
 				if (optItem.isPresent()) {
@@ -160,10 +160,10 @@ public class SplitterRendering extends EntityRendererFactory {
 		setLogisticMove(map, rightPos, dir.frontRight(), dir);
 
 		if (entity.json().has("output_priority") && entity.json().has("filter")) {
-			boolean right = entity.json().getString("output_priority").equals("right");
+			boolean right = entity.json().path("output_priority").textValue().equals("right");
 			Point2D.Double outPos = right ? rightPos : leftPos;
 			Point2D.Double notOutPos = !right ? rightPos : leftPos;
-			String itemName = entity.json().getString("filter");
+			String itemName = entity.json().path("filter").textValue();
 
 			map.getOrCreateLogisticGridCell(dir.frontLeft().offset(outPos, 0.25)).addOutput(itemName);
 			map.getOrCreateLogisticGridCell(dir.frontRight().offset(outPos, 0.25)).addOutput(itemName);

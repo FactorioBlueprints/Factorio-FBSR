@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.pircbotx.Configuration;
 import org.pircbotx.PircBotX;
 import org.pircbotx.hooks.Event;
@@ -29,7 +29,7 @@ public class BlueprintBotIRCService extends AbstractIdleService {
 
 	private static final String IRC_AUTHOR_URL = "http://peterbjornx.nl/wp-content/uploads/2013/08/irc_icon.png";
 
-	private JSONObject configJson;
+	private JsonNode configJson;
 
 	private PircBotX bot;
 
@@ -122,19 +122,27 @@ public class BlueprintBotIRCService extends AbstractIdleService {
 
 	@Override
 	protected void startUp() throws Exception {
-		configJson = Config.get().getJSONObject("irc");
+		configJson = Config.get().path("irc");
 
-		server = configJson.getString("server");
-		channel = configJson.getString("channel");
-		command = configJson.getString("command");
+		JsonNode serverNode = configJson.path("server");
+		JsonNode channelNode = configJson.path("channel");
+		JsonNode commandNode = configJson.path("command");
+		JsonNode name = configJson.path("name");
+		assert serverNode.isTextual();
+		assert channelNode.isTextual();
+		assert channelNode.isTextual();
+		assert name.isTextual();
+		server = serverNode.textValue();
+		channel = channelNode.textValue();
+		command = commandNode.textValue();
 		Configuration configuration = new Configuration.Builder()//
-				.setName(configJson.getString("name"))//
-				.setNickservPassword(configJson.optString("password", null))//
-				.addServer(server)//
-				.addAutoJoinChannel(channel)//
+				.setName(name.textValue())//
+				.setNickservPassword(configJson.path("password").asText(null))//
+				.addServer(this.server)//
+				.addAutoJoinChannel(this.channel)//
 				.addListener(this::onEvent)//
 				.setAutoReconnect(true)//
-				.setAutoReconnectDelay(configJson.optInt("reconnect-milliseconds", 1000))//
+				.setAutoReconnectDelay(configJson.path("reconnect-milliseconds").asInt(1000))//
 				.buildConfiguration();
 
 		bot = new PircBotX(configuration);

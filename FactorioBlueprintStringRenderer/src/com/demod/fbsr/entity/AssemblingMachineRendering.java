@@ -42,7 +42,7 @@ public class AssemblingMachineRendering extends EntityRendererFactory {
 
 		Sprite spriteIcon = new Sprite();
 
-		String recipe = entity.json().optString("recipe", null);
+		String recipe = entity.json().path("recipe").asText(null);
 		if (recipe != null) {
 			Optional<RecipePrototype> optRecipe = dataTable.getRecipe(recipe);
 			if (optRecipe.isPresent()) {
@@ -83,7 +83,7 @@ public class AssemblingMachineRendering extends EntityRendererFactory {
 	@Override
 	public void populateLogistics(WorldMap map, DataTable dataTable, BlueprintEntity entity,
 			EntityPrototype prototype) {
-		String recipeName = entity.json().optString("recipe", null);
+		String recipeName = entity.json().path("recipe").asText(null);
 		if (recipeName != null) {
 			Optional<RecipePrototype> optRecipe = dataTable.getRecipe(recipeName);
 			if (optRecipe.isPresent()) {
@@ -95,7 +95,7 @@ public class AssemblingMachineRendering extends EntityRendererFactory {
 
 	@Override
 	public void populateWorldMap(WorldMap map, DataTable dataTable, BlueprintEntity entity, EntityPrototype prototype) {
-		String recipeName = entity.json().optString("recipe", null);
+		String recipeName = entity.json().path("recipe").asText(null);
 		boolean hasFluid = false;
 		if (recipeName != null) {
 			Optional<RecipePrototype> optRecipe = dataTable.getRecipe(recipeName);

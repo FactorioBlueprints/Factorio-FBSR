@@ -2,33 +2,38 @@ package com.demod.fbsr;
 
 import java.awt.geom.Point2D;
 
-import org.json.JSONObject;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.demod.factorio.Utils;
 
 public class BlueprintEntity {
-	private final JSONObject json;
+	private final JsonNode json;
 
 	private final int id;
 	private final String name;
 	private final Point2D.Double position;
 	private final Direction direction;
 
-	public BlueprintEntity(JSONObject entityJson) {
+	public BlueprintEntity(JsonNode entityJson) {
 		json = entityJson;
 
-		id = entityJson.getInt("entity_number");
-		name = entityJson.getString("name");
+		JsonNode entityNumber = entityJson.path("entity_number");
+		assert entityNumber.isIntegralNumber();
+		id = entityNumber.intValue();
+		JsonNode name = entityJson.path("name");
+		assert name.isTextual();
+		this.name = name.textValue();
 
-		position = Utils.parsePoint2D(entityJson.getJSONObject("position"));
+		position = Utils.parsePoint2D((ObjectNode) entityJson.path("position"));
 
-		direction = Direction.values()[entityJson.optInt("direction", 0)];
+		int direction = entityJson.path("direction").asInt(0);
+		this.direction = Direction.values()[direction];
 	}
 
 	public void debugPrint() {
 		System.out.println();
 		System.out.println(getName());
-		Utils.debugPrintJson(json);
+		Utils.debugPrintJson((ObjectNode) json);
 	}
 
 	@Override
@@ -66,8 +71,7 @@ public class BlueprintEntity {
 		return id;
 	}
 
-	public JSONObject json() {
-		return json;
+	public ObjectNode json() {
+		return (ObjectNode) json;
 	}
-
 }

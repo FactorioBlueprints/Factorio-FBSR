@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -12,45 +15,48 @@ import com.demod.factorio.Utils;
 
 public class Blueprint {
 
-	private final JSONObject json;
+	private final JsonNode json;
 
 	private final List<BlueprintEntity> entities = new ArrayList<>();
 	private final List<BlueprintTile> tiles = new ArrayList<>();
 	private Optional<String> label;
 	private Optional<Long> version;
-	private Optional<JSONArray> icons;
+	private Optional<ArrayNode> icons;
 
-	public Blueprint(JSONObject json) throws IllegalArgumentException, IOException {
+	public Blueprint(JsonNode json) throws IllegalArgumentException, IOException {
 		this.json = json;
 
-		JSONObject blueprintJson = json.getJSONObject("blueprint");
+		ObjectNode blueprintJson = (ObjectNode) json.path("blueprint");
 
 		if (blueprintJson.has("entities")) {
-			Utils.forEach(blueprintJson.getJSONArray("entities"), (JSONObject j) -> {
-				entities.add(new BlueprintEntity(j));
-			});
+			ArrayNode entities = (ArrayNode) blueprintJson.path("entities");
+			for (JsonNode entity : entities) {
+				this.entities.add(new BlueprintEntity(entity));
+			};
 		}
 
 		if (blueprintJson.has("tiles")) {
-			Utils.forEach(blueprintJson.getJSONArray("tiles"), (JSONObject j) -> {
-				tiles.add(new BlueprintTile(j));
-			});
+			JsonNode tiles = blueprintJson.path("tiles");
+			for (JsonNode tile : tiles) {
+				this.tiles.add(new BlueprintTile(tile));
+			};
 		}
 
 		if (blueprintJson.has("label")) {
-			label = Optional.of(blueprintJson.getString("label"));
+			label = Optional.of(blueprintJson.path("label").textValue());
 		} else {
 			label = Optional.empty();
 		}
 
 		if (blueprintJson.has("icons")) {
-			icons = Optional.of(blueprintJson.getJSONArray("icons"));
+			ArrayNode icons = (ArrayNode) blueprintJson.path("icons");
+			this.icons = Optional.of(icons);
 		} else {
 			icons = Optional.empty();
 		}
 
 		if (blueprintJson.has("version")) {
-			version = Optional.of(blueprintJson.getLong("version"));
+			version = Optional.of(blueprintJson.path("version").longValue());
 		} else {
 			version = Optional.empty();
 		}
@@ -60,7 +66,7 @@ public class Blueprint {
 		return entities;
 	}
 
-	public Optional<JSONArray> getIcons() {
+	public Optional<ArrayNode> getIcons() {
 		return icons;
 	}
 
@@ -76,11 +82,11 @@ public class Blueprint {
 		return version;
 	}
 
-	public JSONObject json() {
-		return json;
+	public ObjectNode json() {
+		return (ObjectNode) json;
 	}
 
-	public void setIcons(Optional<JSONArray> icons) {
+	public void setIcons(Optional<ArrayNode> icons) {
 		this.icons = icons;
 	}
 

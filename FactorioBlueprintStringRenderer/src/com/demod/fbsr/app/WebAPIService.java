@@ -10,8 +10,11 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rapidoid.http.MediaType;
 import org.rapidoid.setup.App;
 import org.rapidoid.setup.On;
@@ -28,7 +31,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 public class WebAPIService extends AbstractIdleService {
 
-	private JSONObject configJson;
+	private JsonNode configJson;
 
 	private String saveToLocalStorage(File folder, BufferedImage image) throws IOException {
 		if (!folder.exists()) {
@@ -58,10 +61,10 @@ public class WebAPIService extends AbstractIdleService {
 	protected void startUp() throws Exception {
 		ServiceFinder.addService(this);
 
-		configJson = Config.get().getJSONObject("webapi");
+		configJson = Config.get().path("webapi");
 
-		String address = configJson.optString("bind", "0.0.0.0");
-		int port = configJson.optInt("port", 80);
+		String address = configJson.path("bind").asText("0.0.0.0");
+		int port = configJson.path("port").asInt(80);
 
 		On.address(address).port(port);
 
@@ -69,24 +72,29 @@ public class WebAPIService extends AbstractIdleService {
 			System.out.println("Web API POST!");
 			TaskReporting reporting = new TaskReporting();
 			try {
+				ObjectMapper objectMapper = new ObjectMapper();
+				ObjectWriter objectWriter = objectMapper.writerWithDefaultPrettyPrinter();
 				try {
-					if (req.body() == null) {
+					byte[] requestBody = req.body();
+					if (requestBody == null) {
 						resp.code(400);
 						resp.plain("Body is empty!");
 						reporting.addException(new IllegalArgumentException("Body is empty!"));
 						return resp;
 					}
 
-					JSONObject body;
+					JsonNode bodyNode;
 					try {
-						body = new JSONObject(new String(req.body()));
+						String requestBodyString = new String(requestBody);
+						bodyNode = objectMapper.readTree(requestBodyString);
 					} catch (Exception e) {
 						reporting.addException(e);
 						resp.code(400);
 						resp.plain("Malformed JSON: " + e.getMessage());
 						return resp;
 					}
-					reporting.setContext(body.toString(2));
+					String string = objectWriter.writeValueAsString(bodyNode);
+					reporting.setContext(string);
 
 					/*
 					 * 	{
@@ -110,7 +118,7 @@ public class WebAPIService extends AbstractIdleService {
 					 * }
 					 */
 
-					String content = body.getString("blueprint");
+					String content = bodyNode.path("blueprint").textValue();
 
 					List<BlueprintStringData> blueprintStrings = BlueprintFinder.search(content, reporting);
 					List<Blueprint> blueprints = blueprintStrings.stream().flatMap(s -> s.getBlueprints().stream())
@@ -118,9 +126,11 @@ public class WebAPIService extends AbstractIdleService {
 
 					for (Blueprint blueprint : blueprints) {
 						try {
-							BufferedImage image = FBSR.renderBlueprint(blueprint, reporting, body);
-							if (configJson.optBoolean("use-local-storage", false)) {
-								File localStorageFolder = new File(configJson.getString("local-storage"));
+							BufferedImage image = FBSR.renderBlueprint(blueprint, reporting, bodyNode);
+							if (configJson.path("use-local-storage").asBoolean(false)) {
+								JsonNode localStorage = configJson.path("local-storage");
+								assert localStorage.isTextual();
+								File localStorageFolder = new File(localStorage.textValue());
 								String imageLink = saveToLocalStorage(localStorageFolder, image);
 								reporting.addImage(blueprint.getLabel(), imageLink);
 								reporting.addLink(imageLink);
@@ -136,8 +146,7 @@ public class WebAPIService extends AbstractIdleService {
 					reporting.addException(e);
 				}
 
-				JSONObject result = new JSONObject();
-				Utils.terribleHackToHaveOrderedJSONObject(result);
+				ObjectNode result = objectMapper.createObjectNode();
 
 				if (!reporting.getExceptions().isEmpty()) {
 					reporting.addInfo(
@@ -145,23 +154,22 @@ public class WebAPIService extends AbstractIdleService {
 				}
 
 				if (!reporting.getInfo().isEmpty()) {
-					result.put("info", new JSONArray(reporting.getInfo()));
+					ArrayNode info = result.putArray("info");
+					reporting.getInfo().forEach(info::add);
 				}
 
 				if (!reporting.getImages().isEmpty()) {
-					JSONArray images = new JSONArray();
+					ArrayNode images = result.putArray("images");
 					for (Entry<Optional<String>, String> pair : reporting.getImages()) {
-						JSONObject image = new JSONObject();
-						Utils.terribleHackToHaveOrderedJSONObject(image);
+						ObjectNode image = images.addObject();
 						pair.getKey().ifPresent(l -> image.put("label", l));
 						image.put("link", pair.getValue());
-						images.put(image);
 					}
-					result.put("images", images);
 				}
 
+				String string = objectWriter.writeValueAsString(result);
 				resp.contentType(MediaType.JSON);
-				resp.body(result.toString(2).getBytes());
+				resp.body(string.getBytes());
 
 				return resp;
 

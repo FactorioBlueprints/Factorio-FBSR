@@ -35,9 +35,10 @@ import java.util.function.Consumer;
 
 import javax.imageio.ImageIO;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.json.JSONException;
-import org.json.JSONObject;
-
 import com.demod.factorio.DataTable;
 import com.demod.factorio.FactorioData;
 import com.demod.factorio.ModInfo;
@@ -176,7 +177,7 @@ public class FBSR {
 	}
 
 	private static BufferedImage applyRendering(TaskReporting reporting, int tileSize, List<Renderer> renderers,
-			ArrayListMultimap<Direction, PanelRenderer> borderPanels, JSONObject options)
+			ArrayListMultimap<Direction, PanelRenderer> borderPanels, JsonNode options)
 			throws JSONException, FileNotFoundException, IOException {
 
 		Rectangle2D.Double worldBounds = computeBounds(renderers);
@@ -242,7 +243,7 @@ public class FBSR {
 		if (options.has("max-width")) {
 			int width = (int) ((centerBounds.width + borderLeft / worldRenderScale + borderRight / worldRenderScale)
 					* worldRenderScale * tileSize);
-			int maxWidth = options.getInt("max-width");
+			int maxWidth = options.path("max-width").intValue();
 			if (width > maxWidth) {
 				worldRenderScale = (float) ((maxWidth - tileSize * (borderLeft + borderRight))
 						/ (centerBounds.width * tileSize));
@@ -252,7 +253,7 @@ public class FBSR {
 		if (options.has("max-height")) {
 			int height = (int) ((centerBounds.height + borderTop / worldRenderScale + borderBottom / worldRenderScale)
 					* worldRenderScale * tileSize);
-			int maxHeight = options.getInt("max-height");
+			int maxHeight = options.path("max-height").intValue();
 			if (height > maxHeight) {
 				worldRenderScale = (float) ((maxHeight - tileSize * (borderTop + borderBottom))
 						/ (centerBounds.height * tileSize));
@@ -850,10 +851,12 @@ public class FBSR {
 
 	public static BufferedImage renderBlueprint(Blueprint blueprint, TaskReporting reporting)
 			throws JSONException, IOException {
-		return renderBlueprint(blueprint, reporting, new JSONObject());
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode objectNode = objectMapper.createObjectNode();
+		return renderBlueprint(blueprint, reporting, objectNode);
 	}
 
-	public static BufferedImage renderBlueprint(Blueprint blueprint, TaskReporting reporting, JSONObject options)
+	public static BufferedImage renderBlueprint(Blueprint blueprint, TaskReporting reporting, JsonNode options)
 			throws JSONException, IOException {
 		DataTable table = FactorioData.getTable();
 		WorldMap map = new WorldMap();
@@ -969,7 +972,7 @@ public class FBSR {
 		showRailLogistics(renderers::add, table, map);
 
 		ArrayListMultimap<Direction, PanelRenderer> borderPanels = ArrayListMultimap.create();
-		if (options.optBoolean("show-info-panels", true)) {
+		if (options.path("show-info-panels").asBoolean(true)) {
 			blueprint.getLabel().ifPresent(label -> {
 				borderPanels.put(Direction.NORTH, createHeaderPanel(label));
 			});

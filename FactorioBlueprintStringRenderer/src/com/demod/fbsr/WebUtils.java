@@ -19,10 +19,11 @@ import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 
-import org.json.JSONArray;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.json.JSONException;
-import org.json.JSONObject;
-
 import com.demod.factorio.Utils;
 import com.demod.fbsr.app.BlueprintBotDiscordService;
 import com.demod.fbsr.app.ServiceFinder;
@@ -86,28 +87,27 @@ public final class WebUtils {
 		return hc;
 	}
 
-	public static JSONObject readJsonFromURL(String url) throws JSONException, MalformedURLException, IOException {
+	public static JsonNode readJsonFromURL(String url) throws JSONException, MalformedURLException, IOException {
 		return Utils.readJsonFromStream(new URL(url).openStream());
 	}
 
 	public static URL uploadToBundly_BROKEN(String title, String description, List<Entry<URL, String>> links)
 			throws IOException {
-		JSONObject request = new JSONObject();
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode request = objectMapper.createObjectNode();
 		request.put("title", title);
 		request.put("desc", description);
 
-		JSONArray items = new JSONArray();
+		ArrayNode items = request.putArray("items");
 		for (Entry<URL, String> pair : links) {
-			JSONObject item = new JSONObject();
+			ObjectNode item = items.addObject();
 			item.put("url", pair.getKey().toString());
 			item.put("id", Long.toString(System.currentTimeMillis()));
 			item.put("caption", pair.getValue());
-			items.put(item);
 
 			// XXX Lazy approach to make sure id is unique...
 			Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
 		}
-		request.put("items", items);
 
 		URL url = new URL("http://bundly.io/createBundle");
 		URLConnection connection = url.openConnection();
@@ -175,8 +175,11 @@ public final class WebUtils {
 			MultipartUtility utility = new MultipartUtility("https://mixtape.moe/upload.php", "UTF-8");
 			utility.addFormField("name", fileName);
 			utility.addFilePart("files[]", fileName, bais);
+			ObjectMapper objectMapper = new ObjectMapper();
+			JsonNode jsonNode = objectMapper.readTree(utility.finish().get(0));
+
 			return new URL(
-					new JSONObject(utility.finish().get(0)).getJSONArray("files").getJSONObject(0).getString("url"));
+					jsonNode.path("files").path(0).path("url").textValue());
 		}
 	}
 
@@ -186,8 +189,10 @@ public final class WebUtils {
 			MultipartUtility utility = new MultipartUtility("https://nya.is/upload", "UTF-8");
 			utility.addFormField("name", fileName);
 			utility.addFilePart("files[]", fileName, bais);
+			ObjectMapper objectMapper = new ObjectMapper();
+			JsonNode jsonNode = objectMapper.readTree(utility.finish().get(0));
 			return new URL(
-					new JSONObject(utility.finish().get(0)).getJSONArray("files").getJSONObject(0).getString("url"));
+					jsonNode.path("files").path(0).path("url").textValue());
 		}
 	}
 

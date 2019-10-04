@@ -31,8 +31,8 @@ public class DeciderCombinatorRendering extends EntityRendererFactory {
 		List<Sprite> sprites = RenderUtils.getSpritesFromAnimation(
 				prototype.lua().get("sprites").get(entity.getDirection().name().toLowerCase()));
 		Sprite operatorSprite = RenderUtils.getSpriteFromAnimation(prototype.lua()
-				.get(operationSprites.get(entity.json().getJSONObject("control_behavior")
-						.getJSONObject("decider_conditions").getString("comparator")))
+				.get(operationSprites.get(entity.json().path("control_behavior")
+						.path("decider_conditions").path("comparator").textValue()))
 				.get(entity.getDirection().name().toLowerCase()));
 
 		register.accept(RenderUtils.spriteRenderer(sprites, entity, prototype));

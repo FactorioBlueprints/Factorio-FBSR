@@ -11,10 +11,11 @@ import java.util.Optional;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.codec.binary.Base64;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import com.google.common.base.Charsets;
 
 public class BlueprintStringData {
@@ -25,10 +26,9 @@ public class BlueprintStringData {
 		return blueprintString;
 	}
 
-	public static JSONObject decode(String blueprintString) throws IOException {
+	public static JsonNode decode(String blueprintString) throws IOException {
 		blueprintString = cleanupBlueprintString(blueprintString);
 		byte[] decoded = Base64.decodeBase64(blueprintString.substring(1));
-		JSONObject json;
 		try (BufferedReader br = new BufferedReader(
 				new InputStreamReader(new InflaterInputStream(new ByteArrayInputStream(decoded)), Charsets.UTF_8))) {
 			StringBuilder jsonBuilder = new StringBuilder();
@@ -36,12 +36,12 @@ public class BlueprintStringData {
 			while ((line = br.readLine()) != null) {
 				jsonBuilder.append(line);
 			}
-			json = new JSONObject(jsonBuilder.toString());
+			ObjectMapper objectMapper = new ObjectMapper();
+			return objectMapper.readTree(jsonBuilder.toString());
 		}
-		return json;
 	}
 
-	public static String encode(JSONObject json) throws IOException {
+	public static String encode(ObjectNode json) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
 				DeflaterOutputStream dos = new DeflaterOutputStream(baos)) {
 			dos.write(json.toString().getBytes());
@@ -52,7 +52,7 @@ public class BlueprintStringData {
 
 	private final List<Blueprint> blueprints = new ArrayList<>();
 
-	private final JSONObject json;
+	private final JsonNode json;
 
 	private final Optional<String> label;
 	private final Optional<Long> version;
@@ -76,20 +76,20 @@ public class BlueprintStringData {
 			label = blueprint.getLabel();
 			version = blueprint.getVersion();
 		} else {
-			JSONObject bookJson = json.getJSONObject("blueprint_book");
-			JSONArray blueprintsJson = bookJson.getJSONArray("blueprints");
-			for (int i = 0; i < blueprintsJson.length(); i++) {
-				Blueprint blueprint = new Blueprint(blueprintsJson.getJSONObject(i));
+			JsonNode bookJson = json.path("blueprint_book");
+			ArrayNode blueprintsJson = (ArrayNode) bookJson.path("blueprints");
+			for (int i = 0; i < blueprintsJson.size(); i++) {
+				Blueprint blueprint = new Blueprint(blueprintsJson.path(i));
 				blueprints.add(blueprint);
 			}
 
 			if (bookJson.has("label")) {
-				label = Optional.of(bookJson.getString("label"));
+				label = Optional.of(bookJson.path("label").textValue());
 			} else {
 				label = Optional.empty();
 			}
 			if (bookJson.has("version")) {
-				version = Optional.of(bookJson.getLong("version"));
+				version = Optional.of(bookJson.path("version").longValue());
 			} else {
 				version = Optional.empty();
 			}
@@ -116,7 +116,7 @@ public class BlueprintStringData {
 		return blueprints.size() > 1;
 	}
 
-	public JSONObject json() {
+	public JsonNode json() {
 		return json;
 	}
 }

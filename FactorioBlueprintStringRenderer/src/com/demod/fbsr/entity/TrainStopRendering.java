@@ -23,7 +23,7 @@ public class TrainStopRendering extends EntityRendererFactory {
 			EntityPrototype prototype) {
 		Color color;
 		if (entity.json().has("color")) {
-			color = RenderUtils.parseColor(entity.json().getJSONObject("color"));
+			color = RenderUtils.parseColor(entity.json().path("color"));
 		} else {
 			color = new Color(242, 0, 0, 127);
 		}
@@ -41,7 +41,7 @@ public class TrainStopRendering extends EntityRendererFactory {
 		register.accept(RenderUtils.spriteRenderer(Layer.ENTITY2, topSprites, entity, prototype));
 
 		if (entity.json().has("station")) {
-			String stationName = entity.json().optString("station");
+			String stationName = entity.json().path("station").textValue();
 			register.accept(RenderUtils.drawString(Layer.OVERLAY4, entity.getPosition(), Color.white, stationName));
 		}
 	}

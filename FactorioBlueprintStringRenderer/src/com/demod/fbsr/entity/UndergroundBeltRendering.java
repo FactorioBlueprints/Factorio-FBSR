@@ -20,7 +20,7 @@ public class UndergroundBeltRendering extends EntityRendererFactory {
 	@Override
 	public void createRenderers(Consumer<Renderer> register, WorldMap map, DataTable dataTable, BlueprintEntity entity,
 			EntityPrototype prototype) {
-		boolean input = entity.json().getString("type").equals("input");
+		boolean input = entity.json().path("type").textValue().equals("input");
 		Direction structDir = input ? entity.getDirection() : entity.getDirection().back();
 
 		Sprite beltSprite = TransportBeltRendering.getBeltSprite(prototype, entity.getDirection(), BeltBend.NONE);
@@ -38,7 +38,7 @@ public class UndergroundBeltRendering extends EntityRendererFactory {
 			EntityPrototype prototype) {
 		Direction dir = entity.getDirection();
 		Point2D.Double pos = entity.getPosition();
-		boolean input = entity.json().getString("type").equals("input");
+		boolean input = entity.json().path("type").textValue().equals("input");
 
 		if (input) {
 			setLogisticMove(map, pos, dir.backLeft(), dir);
@@ -68,7 +68,7 @@ public class UndergroundBeltRendering extends EntityRendererFactory {
 
 	@Override
 	public void populateWorldMap(WorldMap map, DataTable dataTable, BlueprintEntity entity, EntityPrototype prototype) {
-		boolean input = entity.json().getString("type").equals("input");
+		boolean input = entity.json().path("type").textValue().equals("input");
 
 		if (input) {
 			map.setBelt(entity.getPosition(), entity.getDirection(), false, false);

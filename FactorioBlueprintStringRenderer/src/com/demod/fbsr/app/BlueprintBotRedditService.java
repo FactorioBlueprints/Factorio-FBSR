@@ -18,8 +18,11 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.demod.factorio.Config;
 import com.demod.factorio.Utils;
@@ -61,7 +64,7 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 	private static final File CACHE_FILE = new File("redditCache.json");
 	private static final String REDDIT_AUTHOR_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Reddit.svg/64px-Reddit.svg.png";
 
-	private JSONObject configJson;
+	private ObjectNode configJson;
 	private String myUserName;
 	private List<String> subreddits;
 	private long ageLimitMillis;
@@ -100,7 +103,7 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 				.findAny();
 	}
 
-	private JSONObject getOrCreateCache() throws FileNotFoundException, IOException {
+	private ObjectNode getOrCreateCache() {
 		if (CACHE_FILE.exists()) {
 			try (FileInputStream fis = new FileInputStream(CACHE_FILE)) {
 				return Utils.readJsonFromStream(fis);
@@ -109,7 +112,8 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 			}
 		}
 
-		JSONObject cache = new JSONObject();
+		ObjectMapper objectMapper = new ObjectMapper();
+		ObjectNode cache = objectMapper.createObjectNode();
 		cache.put("lastProcessedMessageMillis", 0L);
 		return cache;
 	}
@@ -219,9 +223,10 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		}
 	}
 
-	private boolean processNewComments(JSONObject cacheJson, String subreddit, long ageLimitMillis,
+	private boolean processNewComments(
+			ObjectNode cacheJson, String subreddit, long ageLimitMillis,
 			Optional<WatchdogService> watchdog) throws ApiException, IOException {
-		long lastProcessedMillis = cacheJson.optLong("lastProcessedCommentMillis-" + subreddit);
+		long lastProcessedMillis = cacheJson.path("lastProcessedCommentMillis-" + subreddit).asLong(0L);
 
 		CommentStream commentStream = new CommentStream(reddit, subreddit);
 		commentStream.setTimePeriod(TimePeriod.ALL);
@@ -286,10 +291,12 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		}
 	}
 
-	private boolean processNewMessages(JSONObject cacheJson, long ageLimitMillis, Optional<WatchdogService> watchdog)
+	private boolean processNewMessages(ObjectNode cacheJson, long ageLimitMillis, Optional<WatchdogService> watchdog)
 			throws ApiException {
 
-		long lastProcessedMillis = cacheJson.getLong("lastProcessedMessageMillis");
+		JsonNode lastProcessedMessageMillis = cacheJson.path("lastProcessedMessageMillis");
+		assert lastProcessedMessageMillis.isIntegralNumber();
+		long lastProcessedMillis = lastProcessedMessageMillis.longValue();
 
 		InboxPaginator paginator = new InboxPaginator(reddit, "messages");
 		paginator.setTimePeriod(TimePeriod.ALL);
@@ -354,9 +361,12 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		}
 	}
 
-	private boolean processNewSubmissions(JSONObject cacheJson, String subreddit, long ageLimitMillis,
+	private boolean processNewSubmissions(
+			ObjectNode cacheJson, String subreddit, long ageLimitMillis,
 			Optional<WatchdogService> watchdog) throws NetworkException, ApiException {
-		long lastProcessedMillis = cacheJson.optLong("lastProcessedSubmissionMillis-" + subreddit);
+		JsonNode lastProcessedSubmissionMillis = cacheJson.path("lastProcessedSubmissionMillis-" + subreddit);
+		assert lastProcessedSubmissionMillis.isIntegralNumber();
+		long lastProcessedMillis = lastProcessedSubmissionMillis.longValue();
 
 		SubredditPaginator paginator = new SubredditPaginator(reddit, subreddit);
 		paginator.setTimePeriod(TimePeriod.ALL);
@@ -452,7 +462,7 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		watchdog.ifPresent(w -> w.notifyKnown(WATCHDOG_LABEL));
 
 		try {
-			JSONObject cacheJson = getOrCreateCache();
+			ObjectNode cacheJson = getOrCreateCache();
 			boolean cacheUpdated = false;
 
 			ensureConnectedToReddit();
@@ -479,15 +489,18 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		}
 	}
 
-	private void saveCache(JSONObject cacheJson) throws IOException {
+	private void saveCache(JsonNode cacheJson) throws IOException {
+		ObjectWriter objectWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
 		try (FileWriter fw = new FileWriter(CACHE_FILE)) {
-			fw.write(cacheJson.toString(2));
+			fw.write(objectWriter.writeValueAsString(cacheJson));
 		}
 	}
 
 	@Override
 	protected Scheduler scheduler() {
-		return Scheduler.newFixedDelaySchedule(0, configJson.getInt("refresh_seconds"), TimeUnit.SECONDS);
+		JsonNode refreshSeconds = configJson.path("refresh_seconds");
+		assert refreshSeconds.isIntegralNumber();
+		return Scheduler.newFixedDelaySchedule(0, refreshSeconds.intValue(), TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -502,27 +515,43 @@ public class BlueprintBotRedditService extends AbstractScheduledService {
 		reddit = new RedditClient(UserAgent.of("server", "com.demod.fbsr", "0.0.1", "demodude4u"));
 		account = new AccountManager(reddit);
 
-		configJson = Config.get().getJSONObject("reddit");
+		configJson = (ObjectNode) Config.get().path("reddit");
 		if (configJson.has("subreddit")) {
-			subreddits = ImmutableList.of(configJson.getString("subreddit"));
+			JsonNode subreddit = configJson.path("subreddit");
+			assert subreddit.isTextual();
+			subreddits = ImmutableList.of(subreddit.textValue());
 		} else {
-			JSONArray subredditsJson = configJson.getJSONArray("subreddits");
+			ArrayNode subredditsJson = (ArrayNode) configJson.path("subreddits");
 			subreddits = new ArrayList<>();
 			Utils.<String>forEach(subredditsJson, s -> subreddits.add(s));
 		}
-		ageLimitMillis = configJson.getInt("age_limit_hours") * 60 * 60 * 1000;
-		processMessages = configJson.getBoolean("process_messages");
-		summonKeyword = configJson.getString("summon_keyword").toLowerCase();
+		JsonNode ageLimitHours = configJson.path("age_limit_hours");
+		assert ageLimitHours.isIntegralNumber();
+		ageLimitMillis = ageLimitHours.intValue() * 60 * 60 * 1000;
+		JsonNode processMessages = configJson.path("process_messages");
+		assert processMessages.isBoolean();
+		this.processMessages = processMessages.booleanValue();
+		JsonNode summonKeyword = configJson.path("summon_keyword");
+		assert summonKeyword.isTextual();
+		this.summonKeyword = summonKeyword.textValue().toLowerCase();
 
-		JSONObject redditCredentialsJson = configJson.getJSONObject("credentials");
+		ObjectNode redditCredentialsJson = (ObjectNode) configJson.path("credentials");
+		JsonNode username = redditCredentialsJson.path("username");
+		JsonNode password = redditCredentialsJson.path("password");
+		JsonNode clientId = redditCredentialsJson.path("client_id");
+		JsonNode clientSecret = redditCredentialsJson.path("client_secret");
+		assert username.isTextual();
+		assert password.isTextual();
+		assert clientId.isTextual();
+		assert clientSecret.isTextual();
 		credentials = Credentials.script( //
-				redditCredentialsJson.getString("username"), //
-				redditCredentialsJson.getString("password"), //
-				redditCredentialsJson.getString("client_id"), //
-				redditCredentialsJson.getString("client_secret") //
+				username.textValue(), //
+				password.textValue(), //
+				clientId.textValue(), //
+				clientSecret.textValue() //
 		);
 
-		myUserName = redditCredentialsJson.getString("username");
+		myUserName = username.textValue();
 		myUserNameMention = ("u/" + myUserName).toLowerCase();
 
 		ServiceFinder.addService(this);

@@ -6,9 +6,8 @@ import java.io.PrintStream;
 
 import javax.swing.JOptionPane;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.output.TeeOutputStream;
-import org.json.JSONObject;
-
 import com.demod.factorio.Config;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -17,9 +16,11 @@ public class LoggingService extends AbstractIdleService {
 	static {
 		PrintStream err = System.err;
 		try {
-			JSONObject configJson = Config.get().getJSONObject("logging");
+			JsonNode configJson = Config.get().path("logging");
 
-			File file = new File(configJson.getString("file"));
+			JsonNode fileJson = configJson.path("file");
+			assert fileJson.isTextual();
+			File file = new File(fileJson.textValue());
 			FileOutputStream fos = new FileOutputStream(file);
 			System.setOut(new PrintStream(new TeeOutputStream(System.out, fos)));
 			System.setErr(new PrintStream(new TeeOutputStream(System.err, fos)));

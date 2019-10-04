@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import com.demod.factorio.DataTable;
 import com.demod.factorio.FactorioData;
@@ -36,9 +36,10 @@ public class LogisticContainerRendering extends EntityRendererFactory {
 
 		if (entity.json().has("request_filters")) {
 			List<String> items = new ArrayList<>();
-			Utils.<JSONObject>forEach(entity.json().getJSONArray("request_filters"), j -> {
-				items.add(j.getString("name"));
-			});
+			JsonNode requestFilters = entity.json().path("request_filters");
+			for (JsonNode requestFilter : requestFilters) {
+				items.add(requestFilters.path("name").textValue());
+			};
 
 			if (!items.isEmpty()) {
 				String itemName = items.get(0);
@@ -71,9 +72,10 @@ public class LogisticContainerRendering extends EntityRendererFactory {
 		if (entity.json().has("request_filters")) {
 
 			Set<String> outputs = new LinkedHashSet<>();
-			Utils.<JSONObject>forEach(entity.json().getJSONArray("request_filters"), j -> {
-				outputs.add(j.getString("name"));
-			});
+			JsonNode requestFilters = entity.json().path("request_filters");
+			for (JsonNode requestFilter : requestFilters) {
+				outputs.add(requestFilter.path("name").textValue());
+			};
 
 			map.getOrCreateLogisticGridCell(Direction.NORTHEAST.offset(pos, 0.25)).setOutputs(Optional.of(outputs));
 			map.getOrCreateLogisticGridCell(Direction.NORTHWEST.offset(pos, 0.25)).setOutputs(Optional.of(outputs));

@@ -23,7 +23,7 @@ public class RollingStockRendering extends EntityRendererFactory {
 	public void createRenderers(Consumer<Renderer> register, WorldMap map, DataTable dataTable, BlueprintEntity entity,
 			EntityPrototype prototype) {
 
-		double orientation = entity.json().getDouble("orientation");
+		double orientation = entity.json().path("orientation").doubleValue();
 
 		LuaValue layers = prototype.lua().get("pictures").get("layers");
 
@@ -32,7 +32,7 @@ public class RollingStockRendering extends EntityRendererFactory {
 
 		Sprite mask = null;
 		if (layers.length() == 3 && entity.json().has("color")) {
-			Color color = RenderUtils.parseColor(entity.json().getJSONObject("color"));
+			Color color = RenderUtils.parseColor(entity.json().path("color"));
 
 			LuaValue bodyMask = layers.get(2);
 			mask = getRotatedSprite(bodyMask, orientation);

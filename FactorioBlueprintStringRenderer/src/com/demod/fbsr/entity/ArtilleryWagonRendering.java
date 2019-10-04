@@ -21,7 +21,7 @@ public class ArtilleryWagonRendering extends RollingStockRendering {
 			EntityPrototype prototype) {
 		super.createRenderers(register, map, dataTable, entity, prototype);
 
-		double orientation = entity.json().getDouble("orientation");
+		double orientation = entity.json().path("orientation").doubleValue();
 
 		LuaValue cannonBaseLayers = prototype.lua().get("cannon_base_pictures").get("layers");
 		LuaValue cannonBaseBody = cannonBaseLayers.get(1);

@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import com.demod.factorio.DataTable;
 import com.demod.factorio.FactorioData;
@@ -81,7 +82,7 @@ public class InserterRendering extends EntityRendererFactory {
 		Point2D.Double outPos;
 
 		if (entity.json().has("pickup_position")) {
-			pickupPos = Utils.parsePoint2D(entity.json().getJSONObject("pickup_position"));
+			pickupPos = Utils.parsePoint2D((ObjectNode) entity.json().path("pickup_position"));
 			inPos = new Point2D.Double(pos.x + pickupPos.x, pos.y + pickupPos.y);
 
 		} else if (modded) {
@@ -94,7 +95,7 @@ public class InserterRendering extends EntityRendererFactory {
 		}
 
 		if (entity.json().has("drop_position")) {
-			insertPos = Utils.parsePoint2D(entity.json().getJSONObject("drop_position"));
+			insertPos = Utils.parsePoint2D((ObjectNode) entity.json().path("drop_position"));
 			outPos = new Point2D.Double(pos.x + insertPos.x, pos.y + insertPos.y);
 
 		} else if (modded) {
@@ -217,9 +218,10 @@ public class InserterRendering extends EntityRendererFactory {
 
 		if (entity.json().has("filters")) {
 			List<String> items = new ArrayList<>();
-			Utils.forEach(entity.json().getJSONArray("filters"), (JSONObject j) -> {
-				items.add(j.getString("name"));
-			});
+			JsonNode filters = entity.json().path("filters");
+			for (JsonNode filter : filters) {
+				items.add(filter.path("name").textValue());
+			};
 
 			if (!items.isEmpty()) {
 				String itemName = items.get(0);
@@ -271,9 +273,10 @@ public class InserterRendering extends EntityRendererFactory {
 
 		if (entity.json().has("filters")) {
 			LogisticGridCell cell = map.getOrCreateLogisticGridCell(cellDir.offset(outPos, 0.25));
-			Utils.forEach(entity.json().getJSONArray("filters"), (JSONObject j) -> {
-				cell.addOutput(j.getString("name"));
-			});
+			JsonNode filters = entity.json().path("filters");
+			for (JsonNode filter : filters) {
+				cell.addOutput(filter.path("name").textValue());
+			};
 
 		} else {
 			addLogisticWarp(map, inPos, dir.frontLeft(), outPos, cellDir);

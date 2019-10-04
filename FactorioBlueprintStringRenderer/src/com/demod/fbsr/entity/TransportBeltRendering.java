@@ -3,7 +3,7 @@ package com.demod.fbsr.entity;
 import java.awt.geom.Point2D;
 import java.util.function.Consumer;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.luaj.vm2.LuaValue;
 
 import com.demod.factorio.DataTable;
@@ -53,8 +53,8 @@ public class TransportBeltRendering extends EntityRendererFactory {
 
 		register.accept(RenderUtils.spriteRenderer(sprite, entity, prototype));
 
-		JSONObject connectionsJson = entity.json().optJSONObject("connections");
-		if (connectionsJson != null && connectionsJson.length() > 0) {
+		JsonNode connectionsJson = entity.json().path("connections");
+		if (connectionsJson != null && connectionsJson.size() > 0) {
 			int connectorFrameMappingIndex = transportBeltConnectorFrameMappingIndex[entity.getDirection()
 					.cardinal()][bend.ordinal()];
 
