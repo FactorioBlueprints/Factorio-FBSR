@@ -151,6 +151,7 @@ public class FactorioManager {
 		JSONObject json = Config.get().getJSONObject("factorio_manager");
 
 		String factorio = json.getString("install");
+		String executable = json.getString("executable");
 
 		File folderModsRoot = new File(json.optString("mods", "mods"));
 		if (folderModsRoot.mkdirs()) {
@@ -222,6 +223,7 @@ public class FactorioManager {
 
 			JSONObject fdConfig = new JSONObject();
 			fdConfig.put("factorio", factorio);
+			fdConfig.put("executable", executable);
 			fdConfig.put("mods", folderMods.getAbsolutePath());
 			fdConfig.put("data", folderData.getAbsolutePath());
 
