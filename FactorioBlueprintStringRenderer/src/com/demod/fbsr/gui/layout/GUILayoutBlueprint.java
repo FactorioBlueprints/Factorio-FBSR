@@ -86,8 +86,8 @@ public class GUILayoutBlueprint {
 		panel.render(g);
 
 		drawTitleBar(g, bounds.cutTop(titleHeight));
-		drawInfoPane(g, bounds.shrinkTop(titleHeight).cutLeft(infoPaneWidth));
-		drawImagePane(g, bounds.shrinkTop(titleHeight).shrinkLeft(infoPaneWidth));
+		//drawInfoPane(g, bounds.shrinkTop(titleHeight).cutLeft(infoPaneWidth));
+		drawImagePane(g, bounds.shrinkTop(titleHeight)/*.shrinkLeft(infoPaneWidth)*/);
 
 		GUIBox creditBounds = bounds.cutRight(190).cutBottom(24).expandTop(8).cutTop(16).cutLeft(160);
 		GUIPanel creditPanel = new GUIPanel(creditBounds, GUIStyle.FRAME_TAB);
@@ -98,7 +98,7 @@ public class GUILayoutBlueprint {
 	}
 
 	private void drawImagePane(Graphics2D g, GUIBox bounds) {
-		bounds = bounds.shrink(0, 12, 24, 24);
+		bounds = bounds.shrink(0, 24, 24, 24);
 
 		// TODO description bar along top
 
@@ -123,9 +123,10 @@ public class GUILayoutBlueprint {
 		request.setMinHeight(OptionalInt.of(renderHeight));
 		request.setMaxWidth(OptionalInt.of(renderWidth));
 		request.setMaxHeight(OptionalInt.of(renderHeight));
-		request.setMaxScale(OptionalDouble.of(2.0));
+		request.setMaxScale(OptionalDouble.of(10.0));
 		request.setBackground(Optional.empty());
-		request.setGridLines(Optional.of(GUIStyle.FONT_BP_COLOR.darker().darker()));
+		//request.setGridLines(Optional.of(GUIStyle.FONT_BP_COLOR.darker().darker()));
+		request.setGridLines(Optional.empty());
 
 		this.result = FBSR.renderBlueprint(request);
 
@@ -191,71 +192,6 @@ public class GUILayoutBlueprint {
 
 		List<SubPanel> subPanels = new ArrayList<>();
 		int cutY = 0;
-
-		// Components
-		{
-			int itemRows = (totalItems.size() + itemColumns - 1) / itemColumns;
-			int subPanelHeight = subPanelInset.add(itemGridInset).getVertical() + itemGridCell.height * itemRows;
-			subPanels.add(new SubPanel(bounds.shrinkTop(cutY).cutTop(subPanelHeight), "Items") {
-				@Override
-				void render(Graphics2D g) {
-					super.render(g);
-
-					GUIBox itemGridBounds = bounds.shrink(subPanelInset).shrink(itemGridInset);
-					GUIPanel itemGridPanel = new GUIPanel(itemGridBounds, GUIStyle.FRAME_DARK_INNER,
-							GUIStyle.FRAME_LIGHT_OUTER);
-					itemGridPanel.render(g);
-
-					for (int row = 0; row < itemRows; row++) {
-						for (int col = 0; col < itemColumns; col++) {
-							GUIBox cellBounds = itemGridCell.toBox(itemGridBounds.x, itemGridBounds.y).indexed(row,
-									col);
-							int bump = itemCellSize / 4;
-							GUIStyle.FRAME_DARK_BUMP_OUTER.render(g, cellBounds.shrink(bump, bump, bump, bump));
-						}
-					}
-
-					List<Entry<String, Double>> itemOrder = totalItems.entrySet().stream()
-							.sorted(Comparator.comparing((Entry<String, Double> e) -> e.getValue()).reversed())
-							.collect(Collectors.toList());
-
-					for (int i = 0; i < itemOrder.size(); i++) {
-						Entry<String, Double> entry = itemOrder.get(i);
-						String item = entry.getKey();
-						double quantity = entry.getValue();
-						int col = i % itemColumns;
-						int row = i / itemColumns;
-						GUIBox cellBounds = itemGridCell.toBox(itemGridBounds.x, itemGridBounds.y).indexed(row, col);
-
-						GUIStyle.ITEM_SLOT.render(g, cellBounds);
-
-						Optional<ItemPrototype> protoItem = FactorioManager.lookupItemByName(item);
-
-						if (protoItem.isPresent()) {
-							GUIImage imgIcon = new GUIImage(cellBounds,
-									protoItem.get().getTable().getData().getWikiIcon(protoItem.get()), itemIconScale,
-									false);
-							imgIcon.render(g);
-						} else {
-							g.setColor(EntityRendererFactory.getUnknownColor(item));
-							g.fillOval(cellBounds.x, cellBounds.y, cellBounds.width, cellBounds.height);
-						}
-
-						String fmtQty = RenderUtils.fmtItemQuantity(quantity);
-						g.setFont(GUIStyle.FONT_BP_BOLD.deriveFont(itemFontSize));
-						int strW = g.getFontMetrics().stringWidth(fmtQty);
-						int x = cellBounds.x + cellBounds.width - strW - itemFontOffset;
-						int y = cellBounds.y + cellBounds.height - itemFontOffset;
-						g.setColor(new Color(0, 0, 0, 128));
-						g.drawString(fmtQty, x - 1, y - 1);
-						g.drawString(fmtQty, x + 1, y + 1);
-						g.setColor(Color.white);
-						g.drawString(fmtQty, x, y);
-					}
-				}
-			});
-			cutY += subPanelHeight;
-		}
 
 		// Raw
 		if (totalRawItems.size() > 0) {
