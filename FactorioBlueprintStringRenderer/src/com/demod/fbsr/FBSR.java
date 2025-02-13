@@ -260,7 +260,7 @@ public class FBSR {
 			ModInfo baseInfo;
 			try {
 				baseInfo = new ModInfo(Utils.readJsonFromStream(new FileInputStream(new File(
-						Config.get().getJSONObject("factorio_manager").getString("install"), "data/base/info.json"))));
+						Config.get().getJSONObject("factorio_manager").getString("install"), "base/info.json"))));
 				version = baseInfo.getVersion();
 			} catch (JSONException | IOException e) {
 				e.printStackTrace();
