@@ -308,13 +308,17 @@ public class AtlasPackage {
 			// Register WebP writer if needed
 			java.util.Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/webp");
 			if (!writers.hasNext()) {
+				LOGGER.warn("WebP writer not auto-registered, manually registering WebPImageWriterSpi");
 				try {
 					IIORegistry.getDefaultInstance().registerServiceProvider(
 						(ImageWriterSpi) Class.forName("com.luciad.imageio.webp.WebPImageWriterSpi").getDeclaredConstructor().newInstance());
 					writers = ImageIO.getImageWritersByMIMEType("image/webp");
+					LOGGER.info("Successfully registered WebP writer");
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to register WebP writer", e);
 				}
+			} else {
+				LOGGER.debug("WebP writer already registered via auto-discovery");
 			}
 			ImageWriter writer = writers.next();
 			try {
@@ -424,13 +428,16 @@ public class AtlasPackage {
 		// Register WebP reader if needed
 		java.util.Iterator<ImageReader> readers = ImageIO.getImageReadersByMIMEType("image/webp");
 		if (!readers.hasNext()) {
+			LOGGER.warn("WebP reader not auto-registered, manually registering WebPImageReaderSpi");
 			try {
 				IIORegistry.getDefaultInstance().registerServiceProvider(
 					(ImageReaderSpi) Class.forName("com.luciad.imageio.webp.WebPImageReaderSpi").getDeclaredConstructor().newInstance());
-				LOGGER.info("Registered WebP reader for atlas loading");
+				LOGGER.info("Successfully registered WebP reader for atlas loading");
 			} catch (Exception e) {
 				LOGGER.error("Failed to register WebP reader", e);
 			}
+		} else {
+			LOGGER.debug("WebP reader already registered via auto-discovery");
 		}
 		
 		AtomicBoolean failure = new AtomicBoolean(false);
