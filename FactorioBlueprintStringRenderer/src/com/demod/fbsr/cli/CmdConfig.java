@@ -360,9 +360,18 @@ public class CmdConfig {
         for (String dirPath : searchDirs) {
             File dir = new File(dirPath);
             if (dir.exists() && dir.isDirectory()) {
-                File factorioExecutable = FactorioData.getFactorioExecutable(dir);
-                if (factorioExecutable.exists()) {
-                    foundPaths.add(dir.getAbsolutePath());
+                // Check for macOS app bundle structure
+                File macAppContents = new File(dir, "factorio.app/Contents");
+                if (macAppContents.exists() && macAppContents.isDirectory()) {
+                    File factorioExecutable = FactorioData.getFactorioExecutable(macAppContents);
+                    if (factorioExecutable.exists()) {
+                        foundPaths.add(macAppContents.getAbsolutePath());
+                    }
+                } else {
+                    File factorioExecutable = FactorioData.getFactorioExecutable(dir);
+                    if (factorioExecutable.exists()) {
+                        foundPaths.add(dir.getAbsolutePath());
+                    }
                 }
             }
         }
