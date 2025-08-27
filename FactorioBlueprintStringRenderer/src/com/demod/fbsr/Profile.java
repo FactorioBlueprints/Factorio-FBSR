@@ -616,6 +616,9 @@ public class Profile {
         folderProfile.mkdirs();
         try (InputStream is = Profile.class.getClassLoader().getResourceAsStream("profile-vanilla.json")) {
             Files.copy(is, new File(folderProfile, "profile.json").toPath(), StandardCopyOption.REPLACE_EXISTING);
+            // Create empty mod-list.json for vanilla profile
+            File modListFile = new File(folderProfile, "mod-list.json");
+            Files.write(modListFile.toPath(), "{\"mods\": []}".getBytes());
         } catch (IOException e) {
             e.printStackTrace();
             return false;
