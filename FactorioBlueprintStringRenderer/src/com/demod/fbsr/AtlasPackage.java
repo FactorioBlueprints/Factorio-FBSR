@@ -420,6 +420,19 @@ public class AtlasPackage {
 		int[] atlasIds = IntStream.range(0, jsonEntries.length()).map(i -> jsonEntries.getJSONArray(i).getInt(5))
 				.distinct().toArray();
 		LOGGER.info("Read {} Atlases: {}", atlasIds.length, zipFile.getName());
+		
+		// Register WebP reader if needed
+		java.util.Iterator<ImageReader> readers = ImageIO.getImageReadersByMIMEType("image/webp");
+		if (!readers.hasNext()) {
+			try {
+				IIORegistry.getDefaultInstance().registerServiceProvider(
+					(ImageReaderSpi) Class.forName("com.luciad.imageio.webp.WebPImageReaderSpi").getDeclaredConstructor().newInstance());
+				LOGGER.info("Registered WebP reader for atlas loading");
+			} catch (Exception e) {
+				LOGGER.error("Failed to register WebP reader", e);
+			}
+		}
+		
 		AtomicBoolean failure = new AtomicBoolean(false);
 		atlases = Arrays.stream(atlasIds).parallel().mapToObj(id -> {
 			ZipEntry entry = zipFile.getEntry("atlas" + id + ".webp");
