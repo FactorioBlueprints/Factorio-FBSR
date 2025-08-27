@@ -38,6 +38,10 @@ import java.util.zip.ZipOutputStream;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.spi.IIORegistry;
+import javax.imageio.spi.ImageReaderSpi;
+import javax.imageio.spi.ImageWriterSpi;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
@@ -301,7 +305,18 @@ public class AtlasPackage {
 			String filename = "atlas" + atlas.getId() + ".webp";
 			zos.putNextEntry(new ZipEntry(filename));
 
-			ImageWriter writer = ImageIO.getImageWritersByMIMEType("image/webp").next();
+			// Register WebP writer if needed
+			java.util.Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/webp");
+			if (!writers.hasNext()) {
+				try {
+					IIORegistry.getDefaultInstance().registerServiceProvider(
+						(ImageWriterSpi) Class.forName("com.luciad.imageio.webp.WebPImageWriterSpi").getDeclaredConstructor().newInstance());
+					writers = ImageIO.getImageWritersByMIMEType("image/webp");
+				} catch (Exception e) {
+					throw new RuntimeException("Failed to register WebP writer", e);
+				}
+			}
+			ImageWriter writer = writers.next();
 			try {
 				try (ImageOutputStream ios = ImageIO.createImageOutputStream(zos)) {
 					writer.setOutput(ios);
