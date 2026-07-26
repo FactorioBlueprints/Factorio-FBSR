@@ -698,7 +698,7 @@ public class FBSR {
 		DataTable baseTable = factorioManager.getProfileVanilla().getFactorioData().getTable();
 		Map<String, RecipePrototype> recipes = baseTable.getRecipes();
 		Map<BSItemWithQualityID, Double> ret = new LinkedHashMap<>();
-		TotalRawCalculator calculator = new TotalRawCalculator(recipes);
+		TotalRawCalculator calculator = new TotalRawCalculator(recipes, baseTable.getCharacterCraftingCategories());
 		for (Entry<BSItemWithQualityID, Double> entry : totalItems.entrySet()) {
 			BSItemWithQualityID recipeItem = entry.getKey();
 			double recipeAmount = entry.getValue();
