@@ -86,6 +86,8 @@ public class GUILayoutBlueprint {
 
 	private Composite pc;
 	private Composite tint;
+	private Optional<String> title;
+	private boolean websiteFrame;
 
 	private Graphics2D g;
 
@@ -119,9 +121,12 @@ public class GUILayoutBlueprint {
 		GUILabel lblVersion = new GUILabel(versionBounds, versionText, versionFont, Color.GRAY, GUIAlign.TOP_CENTER);
 		renderTinted(lblVersion);
 
-		GUIBox creditBounds = bounds.cutLeft(90).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
-		String creditText = "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
-		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(10f);
+		String creditText = websiteFrame
+				? FactorioPrintsFrame.WATERMARK
+				: "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
+		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(websiteFrame ? 14f : 10f);
+		int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
+		GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
 		GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
 		lblCredit.color = new Color(43, 41, 41);
 		lblCredit.box = creditBounds.shift(-1, 0);
@@ -462,7 +467,7 @@ public class GUILayoutBlueprint {
 
 	private void drawTitleBar(GUIBox bounds) {
 		GUIRichText lblTitle = new GUIRichText(bounds.shrinkBottom(6).shrinkLeft(24),
-				blueprint.label.orElse("Untitled Blueprint"), guiStyle.FONT_BP_BOLD.deriveFont(24f),
+				title.orElse(""), guiStyle.FONT_BP_BOLD.deriveFont(24f),
 				guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_LEFT, resolver);
 		lblTitle.render(g);
 
@@ -486,12 +491,24 @@ public class GUILayoutBlueprint {
 	}
 
 	public BufferedImage generateDiscordImage() {
+		title = Optional.of(blueprint.label.orElse("Untitled Blueprint"));
+		websiteFrame = false;
+		return generateImage(DISCORD_IMAGE_SIZE, true);
+	}
+
+	public BufferedImage generateFactorioPrintsImage(Optional<String> websiteTitle) {
+		title = FactorioPrintsFrame.chooseTitle(websiteTitle, blueprint.label);
+		websiteFrame = true;
+		return generateImage(FactorioPrintsFrame.IMAGE_SIZE, false);
+	}
+
+	private BufferedImage generateImage(GUISize imageSize, boolean showRawItems) {
 		DataTable baseTable = factorioManager.getProfileVanilla().getFactorioData().getTable();
 		boolean baseDataOnly = blueprint.entities.stream().allMatch(e -> baseTable.getEntity(e.name).isPresent())
 				&& blueprint.tiles.stream().allMatch(t -> baseTable.getTile(t.name).isPresent());
 
 		totalItems = FBSR.generateTotalItems(blueprint);
-		totalRawItems = baseDataOnly ? FBSR.generateTotalRawItems(totalItems) : ImmutableMap.of();
+		totalRawItems = showRawItems && baseDataOnly ? FBSR.generateTotalRawItems(totalItems) : ImmutableMap.of();
 
 		modInfo = blueprint.loadModInfo(resolver);
 
@@ -527,8 +544,8 @@ public class GUILayoutBlueprint {
 
 		double scale = 2;
 
-		int imageWidth = (int) (DISCORD_IMAGE_SIZE.width * scale);
-		int imageHeight = (int) (DISCORD_IMAGE_SIZE.height * scale);
+		int imageWidth = (int) (imageSize.width * scale);
+		int imageHeight = (int) (imageSize.height * scale);
 		BufferedImage ret = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_ARGB);
 
 		GUIBox bounds = new GUIBox(0, 0, (int) (ret.getWidth() / scale), (int) (ret.getHeight() / scale));

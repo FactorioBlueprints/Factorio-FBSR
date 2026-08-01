@@ -133,17 +133,33 @@ public class FBSR {
 
 	public static BlueprintPreview renderBlueprintPreview(BSBlueprintString blueprintString,
 			CommandReporting reporting) throws Exception {
+		return renderBlueprintPreview(blueprintString, reporting, Optional.empty(), false);
+	}
+
+	public static BlueprintPreview renderFactorioPrintsPreview(BSBlueprintString blueprintString,
+			CommandReporting reporting, Optional<String> websiteTitle) throws Exception {
+		return renderBlueprintPreview(blueprintString, reporting, websiteTitle, true);
+	}
+
+	private static BlueprintPreview renderBlueprintPreview(BSBlueprintString blueprintString,
+			CommandReporting reporting, Optional<String> websiteTitle, boolean factorioPrintsFrame) throws Exception {
 		if (blueprintString.blueprint.isPresent()) {
 			GUILayoutBlueprint layout = new GUILayoutBlueprint();
 			layout.setBlueprint(blueprintString.blueprint.get());
 			layout.setReporting(reporting);
-			return new BlueprintPreview(layout.generateDiscordImage(), "blueprint");
+			BufferedImage image = factorioPrintsFrame
+					? layout.generateFactorioPrintsImage(websiteTitle)
+					: layout.generateDiscordImage();
+			return new BlueprintPreview(image, "blueprint");
 		}
 		if (blueprintString.blueprintBook.isPresent()) {
 			try (GUILayoutBook layout = new GUILayoutBook()) {
 				layout.setBook(blueprintString.blueprintBook.get());
 				layout.setReporting(reporting);
-				return new BlueprintPreview(layout.generateDiscordImage(), "book");
+				BufferedImage image = factorioPrintsFrame
+						? layout.generateFactorioPrintsImage(websiteTitle)
+						: layout.generateDiscordImage();
+				return new BlueprintPreview(image, "book");
 			}
 		}
 		throw new IllegalArgumentException("Blueprint string is not a blueprint or blueprint book");

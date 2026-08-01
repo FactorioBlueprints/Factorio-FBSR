@@ -18,6 +18,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.rapidoid.http.MediaType;
+import org.rapidoid.http.Req;
+import org.rapidoid.http.Resp;
 import org.rapidoid.setup.App;
 import org.rapidoid.setup.On;
 import org.slf4j.Logger;
@@ -75,6 +77,51 @@ public class WebAPIService extends AbstractIdleService {
 			ImageIO.write(image, "PNG", output);
 			output.flush();
 			response.body(output.toByteArray());
+		}
+	}
+
+	private static Resp serveBlueprintPreview(Req request, Resp response, boolean factorioPrintsFrame) {
+		String endpoint = factorioPrintsFrame ? "/blueprint/factorioprints" : "/blueprint/preview";
+		LOGGER.info("Web API {} POST!", endpoint);
+		CommandReporting reporting = new CommandReporting(
+				"Web API " + endpoint + " / " + request.clientIpAddress() + " / "
+						+ Optional.ofNullable(request.header("User-Agent", null)).orElse("<Unknown>"),
+				null, Instant.now());
+		try {
+			if (request.body() == null) {
+				response.code(400);
+				response.plain("Body is empty!");
+				return response;
+			}
+
+			JSONObject body;
+			try {
+				body = new JSONObject(new String(request.body()));
+			} catch (Exception e) {
+				reporting.addException(e);
+				response.code(400);
+				response.plain("Malformed JSON: " + e.getMessage());
+				return response;
+			}
+			reporting.setCommand(body.toString(2));
+
+			try {
+				BSBlueprintString blueprintString = findBlueprintString(body.getString("blueprint"), reporting);
+				Optional<String> websiteTitle = Optional.ofNullable(body.optString("title", null));
+				BlueprintPreview preview = factorioPrintsFrame
+						? FBSR.renderFactorioPrintsPreview(blueprintString, reporting, websiteTitle)
+						: FBSR.renderBlueprintPreview(blueprintString, reporting);
+				writePngResponse(response, preview.image);
+				return response;
+			} catch (Exception e) {
+				reporting.addException(e);
+				response.code(400);
+				response.plain(e.getMessage());
+				return response;
+			}
+		} finally {
+			ServiceFinder.findService(DiscordService.class)
+					.ifPresent(service -> service.getBot().submitReport(reporting));
 		}
 	}
 
@@ -265,46 +312,9 @@ public class WebAPIService extends AbstractIdleService {
 
 		});
 
-		On.post("/blueprint/preview").serve((req, resp) -> {
-			LOGGER.info("Web API preview POST!");
-			CommandReporting reporting = new CommandReporting(
-					"Web API preview / " + req.clientIpAddress() + " / "
-							+ Optional.ofNullable(req.header("User-Agent", null)).orElse("<Unknown>"),
-					null, Instant.now());
-			try {
-				if (req.body() == null) {
-					resp.code(400);
-					resp.plain("Body is empty!");
-					return resp;
-				}
-
-				JSONObject body;
-				try {
-					body = new JSONObject(new String(req.body()));
-				} catch (Exception e) {
-					reporting.addException(e);
-					resp.code(400);
-					resp.plain("Malformed JSON: " + e.getMessage());
-					return resp;
-				}
-				reporting.setCommand(body.toString(2));
-
-				try {
-					BSBlueprintString blueprintString = findBlueprintString(body.getString("blueprint"), reporting);
-					BlueprintPreview preview = FBSR.renderBlueprintPreview(blueprintString, reporting);
-					writePngResponse(resp, preview.image);
-					return resp;
-				} catch (Exception e) {
-					reporting.addException(e);
-					resp.code(400);
-					resp.plain(e.getMessage());
-					return resp;
-				}
-			} finally {
-				ServiceFinder.findService(DiscordService.class)
-						.ifPresent(service -> service.getBot().submitReport(reporting));
-			}
-		});
+		On.post("/blueprint/preview").serve((request, response) -> serveBlueprintPreview(request, response, false));
+		On.post("/blueprint/factorioprints")
+				.serve((request, response) -> serveBlueprintPreview(request, response, true));
 
 		LOGGER.info("Web API Initialized at {}:{}", address, port);
 	}

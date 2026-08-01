@@ -216,6 +216,8 @@ public class GUILayoutBook implements AutoCloseable {
 	private Rectangle packBounds;
 	private Composite pc;
 	private Composite tint;
+	private Optional<String> title;
+	private boolean websiteFrame;
 
 	private List<String> spaceAgeMods;
 	private List<String> mods;
@@ -251,9 +253,12 @@ public class GUILayoutBook implements AutoCloseable {
 		GUILabel lblVersion = new GUILabel(versionBounds, versionText, versionFont, Color.GRAY, GUIAlign.TOP_CENTER);
 		renderTinted(g, lblVersion);
 
-		GUIBox creditBounds = bounds.cutLeft(90).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
-		String creditText = "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
-		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(10f);
+		String creditText = websiteFrame
+				? FactorioPrintsFrame.WATERMARK
+				: "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
+		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(websiteFrame ? 14f : 10f);
+		int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
+		GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
 		GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
 		lblCredit.color = new Color(43, 41, 41);
 		lblCredit.box = creditBounds.shift(-1, 0);
@@ -430,7 +435,7 @@ public class GUILayoutBook implements AutoCloseable {
 
 	private void drawTitleBar(Graphics2D g, GUIBox bounds) {
 		GUIRichText lblTitle = new GUIRichText(bounds.shrinkBottom(6).shrinkLeft(24),
-				book.label.orElse("Untitled Blueprint Book"), guiStyle.FONT_BP_BOLD.deriveFont(24f),
+				title.orElse(""), guiStyle.FONT_BP_BOLD.deriveFont(24f),
 				guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_LEFT, resolver);
 		lblTitle.render(g);
 
@@ -454,6 +459,18 @@ public class GUILayoutBook implements AutoCloseable {
 	}
 
 	public BufferedImage generateDiscordImage() {
+		title = Optional.of(book.label.orElse("Untitled Blueprint Book"));
+		websiteFrame = false;
+		return generateImage(DISCORD_IMAGE_RATIO, false);
+	}
+
+	public BufferedImage generateFactorioPrintsImage(Optional<String> websiteTitle) {
+		title = FactorioPrintsFrame.chooseTitle(websiteTitle, book.label);
+		websiteFrame = true;
+		return generateImage(1.0, true);
+	}
+
+	private BufferedImage generateImage(double targetRatio, boolean square) {
 		double renderScale = 0.5;
 
 		// Render Images
@@ -502,7 +519,7 @@ public class GUILayoutBook implements AutoCloseable {
 
 		LOGGER.info("Compiling blueprint book image...");
 
-		packBounds = packBlocks(blocks, DISCORD_IMAGE_RATIO);
+		packBounds = packBlocks(blocks, targetRatio);
 
 		int imageWidth = BP_CELL_SIZE.width * packBounds.width;
 		int imageHeight = BP_CELL_SIZE.height * packBounds.height;
@@ -513,6 +530,12 @@ public class GUILayoutBook implements AutoCloseable {
 		// Framing
 		imageWidth += 48;
 		imageHeight += 78;
+
+		if (square) {
+			int squareSize = Math.max(imageWidth, imageHeight);
+			imageWidth = squareSize;
+			imageHeight = squareSize;
+		}
 
 		if ((imageWidth * imageHeight) > MAX_PIXELS) {
 			double shrinkFactor = Math.sqrt((double) (imageWidth * imageHeight) / (double) MAX_PIXELS);
