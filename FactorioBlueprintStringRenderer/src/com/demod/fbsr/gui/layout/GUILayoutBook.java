@@ -213,6 +213,7 @@ public class GUILayoutBook implements AutoCloseable {
 	private CommandReporting reporting;
 	private List<RenderResult> results;
 	private List<ImageBlock> blocks;
+	private BlueprintBookPreviewSelector.Selection previewSelection;
 	private Rectangle packBounds;
 	private Composite pc;
 	private Composite tint;
@@ -274,6 +275,16 @@ public class GUILayoutBook implements AutoCloseable {
 		lblCredit.color = new Color(51, 48, 48);
 		lblCredit.box = creditBounds;
 		renderTinted(g, lblCredit);
+
+		if (previewSelection.isSampled()) {
+			String previewText = previewSelection.blueprints().size() + " of "
+					+ previewSelection.totalBlueprintCount() + " blueprints shown";
+			Font previewFont = guiStyle.FONT_BP_BOLD.deriveFont(12f);
+			GUIBox previewBounds = bounds.cutBottom(24).shrinkBottom(2);
+			GUILabel previewLabel = new GUILabel(
+					previewBounds, previewText, previewFont, Color.GRAY, GUIAlign.CENTER);
+			previewLabel.render(g);
+		}
 
 		g.setComposite(pc);
 	}
@@ -472,12 +483,16 @@ public class GUILayoutBook implements AutoCloseable {
 
 	private BufferedImage generateImage(double targetRatio, boolean square) {
 		double renderScale = 0.5;
+		previewSelection = BlueprintBookPreviewSelector.select(book.getAllBlueprints());
+		LOGGER.info("Rendering {} of {} blueprints for book preview ({} entities and tiles)",
+				previewSelection.blueprints().size(), previewSelection.totalBlueprintCount(),
+				previewSelection.selectedComponents());
 
 		// Render Images
 		blocks = new ArrayList<>();
 		results = new ArrayList<>();
 		List<Future<RenderResult>> futures = new ArrayList<>();
-		for (BSBlueprint blueprint : book.getAllBlueprints()) {
+		for (BSBlueprint blueprint : previewSelection.blueprints()) {
 
 			int minWidth = (int) (BP_IMAGE_MIN.width * renderScale);
 			int minHeight = (int) (BP_IMAGE_MIN.height * renderScale);
@@ -560,7 +575,7 @@ public class GUILayoutBook implements AutoCloseable {
 			Set<String> mods = new LinkedHashSet<>();
 			Set<String> spaceAgeMods = new LinkedHashSet<>();
 			boolean anyEditor = false;
-			for (BSBlueprint blueprint : book.getAllBlueprints()) {
+			for (BSBlueprint blueprint : previewSelection.blueprints()) {
 				BlueprintModInfo modInfo = blueprint.loadModInfo(resolver);
 				mods.addAll(modInfo.mods);
 				spaceAgeMods.addAll(modInfo.spaceAgeMods);
