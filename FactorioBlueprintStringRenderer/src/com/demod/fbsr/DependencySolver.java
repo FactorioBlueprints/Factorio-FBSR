@@ -75,6 +75,9 @@ public class DependencySolver {
         List<String> out = new ArrayList<>(builtins);
         insertBuiltinDepIfPresent(out, "space-age", "quality");
         insertBuiltinDepIfPresent(out, "space-age", "elevated-rails");
+        // Factorio 2.1 made space-age and quality require the recycler builtin.
+        insertBuiltinDepIfPresent(out, "space-age", "recycler");
+        insertBuiltinDepIfPresent(out, "quality", "recycler");
         return out;
     }
 
