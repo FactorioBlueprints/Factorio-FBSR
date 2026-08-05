@@ -92,6 +92,14 @@ public class ElectricPoleRendering extends EntityWithOwnerRendering {
 		super.createWireConnector(register, registerWirePoint, entity, wired, map);
 
 		if (wired.isEmpty()) {
+			// Poles auto-connect in the game, so blueprints often omit wire data;
+			// an unwired pole still needs its body drawn.
+			int index = protoPictures.getIndex(0);
+			protoPictures.defineSprites(entity.spriteRegister(register, Layer.HIGHER_OBJECT_ABOVE), index);
+			FPWireConnectionPoint cp = protoConnectionPoints.get(index);
+			registerWirePoint.accept(1, WirePoint.fromConnectionPoint(WireColor.RED, cp, entity));
+			registerWirePoint.accept(2, WirePoint.fromConnectionPoint(WireColor.GREEN, cp, entity));
+			registerWirePoint.accept(5, WirePoint.fromConnectionPoint(WireColor.COPPER, cp, entity));
 			return;
 		}
 
