@@ -231,6 +231,13 @@ public class RenderingRegistry {
 			factory.setPrototype(proto);
 		}
 
+		// Report every missing or mismatched prototype before failing, and never run the
+		// init loops with factories whose prototype was left unset.
+		if (failed) {
+			System.out.println("Failed to initialize some rendering factories.");
+			return false;
+		}
+
 		for (EntityRendererFactory factory : entityFactories) {
 			factory.initFromPrototype();
 			factory.drawBounds = factory.computeBounds();
@@ -240,11 +247,6 @@ public class RenderingRegistry {
 		for (TileRendererFactory factory : tileFactories) {
 			factory.initFromPrototype(profile.getFactorioData().getTable());
 			factory.initAtlas(profile.getAtlasPackage()::registerDef);
-		}
-
-		if (failed) {
-			System.out.println("Failed to initialize some rendering factories.");
-			return false;
 		}
 
 		return true;

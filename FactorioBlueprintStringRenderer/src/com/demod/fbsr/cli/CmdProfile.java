@@ -482,10 +482,12 @@ public class CmdProfile {
         Set<String> vanillaEntities = new HashSet<>();
         Set<String> vanillaTiles = new HashSet<>();
 
+        List<String> unloadableProfiles = new ArrayList<>();
         for (Profile profile : Profile.listProfiles()) {
-            if (!profile.getRenderingRegistry().loadConfig(profile.getAssetsRenderingConfiguration())) {
-                System.out.println("Failed to load rendering configuration for profile: " + profile.getName());
-                return;
+            JSONObject jsonRendering = profile.getAssetsRenderingConfiguration();
+            if (jsonRendering == null || !profile.getRenderingRegistry().loadConfig(jsonRendering)) {
+                unloadableProfiles.add(profile.getName());
+                continue;
             }
 
             if (profile.isVanilla()) {
@@ -536,6 +538,12 @@ public class CmdProfile {
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(e -> System.out.println(" - " + e.getKey() + ": " + e.getValue().stream().flatMap(f -> f.getMods().stream()).map(m -> m.name).distinct().sorted().collect(Collectors.joining(", "))));
         System.out.println();
+
+        if (!unloadableProfiles.isEmpty()) {
+            System.out.println("Profiles without a loadable rendering configuration, excluded from this report: "
+                    + String.join(", ", unloadableProfiles));
+            System.out.println("Build them first to include them.");
+        }
     }
 
     @Command(name = "report-mods", description = "Generate detailed mod, entity, and tile information for all profiles.")
