@@ -237,10 +237,9 @@ public class GUILayoutBook implements AutoCloseable {
 		drawTitleBar(g, bounds.cutTop(titleHeight));
 		drawImagePane(g, bounds.shrinkTop(titleHeight));
 
+		// The mod badges already signal moddedness, so the version tab stays plain.
 		String versionText;
-		if (!mods.isEmpty()) {
-			versionText = "Modded Factorio " + book.version;
-		} else if (!spaceAgeMods.isEmpty()) {
+		if (!spaceAgeMods.isEmpty()) {
 			versionText = "Factorio Space Age " + book.version;
 		} else {
 			versionText = "Factorio " + book.version;
@@ -275,6 +274,30 @@ public class GUILayoutBook implements AutoCloseable {
 		lblCredit.color = new Color(51, 48, 48);
 		lblCredit.box = creditBounds;
 		renderTinted(g, lblCredit);
+
+		if (websiteFrame && !previewSelection.isSampled()) {
+			String botCreditText = FactorioPrintsFrame.BOT_CREDIT;
+			Font botCreditFont = guiStyle.FONT_BP_REGULAR.deriveFont(14f);
+			int botCreditWidth = g.getFontMetrics(botCreditFont).stringWidth(botCreditText);
+			GUIBox botCreditBounds = bounds.cutBottom(24).shrinkBottom(2)
+					.cutLeft(bounds.width / 2 + botCreditWidth / 2).cutRight(botCreditWidth);
+			GUILabel lblBotCredit = new GUILabel(botCreditBounds, botCreditText, botCreditFont, Color.black,
+					GUIAlign.CENTER_LEFT);
+			lblBotCredit.color = new Color(43, 41, 41);
+			lblBotCredit.box = botCreditBounds.shift(-1, 0);
+			renderTinted(g, lblBotCredit);
+			lblBotCredit.box = botCreditBounds.shift(1, 0);
+			renderTinted(g, lblBotCredit);
+			lblBotCredit.color = new Color(30, 30, 30);
+			lblBotCredit.box = botCreditBounds.shift(0, -1);
+			renderTinted(g, lblBotCredit);
+			lblBotCredit.color = new Color(96, 94, 94);
+			lblBotCredit.box = botCreditBounds.shift(0, 1);
+			renderTinted(g, lblBotCredit);
+			lblBotCredit.color = new Color(51, 48, 48);
+			lblBotCredit.box = botCreditBounds;
+			renderTinted(g, lblBotCredit);
+		}
 
 		if (previewSelection.isSampled()) {
 			String previewText = previewSelection.blueprints().size() + " of "

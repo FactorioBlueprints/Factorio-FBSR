@@ -104,10 +104,9 @@ public class GUILayoutBlueprint {
 		drawInfoPane(bounds.shrinkTop(titleHeight).cutLeft(infoPaneWidth));
 		drawImagePane(bounds.shrinkTop(titleHeight).shrinkLeft(infoPaneWidth));
 
+		// The mod badges already signal moddedness, so the version tab stays plain.
 		String versionText;
-		if (!modInfo.mods.isEmpty()) {
-			versionText = "Modded Factorio " + blueprint.version;
-		} else if (!modInfo.spaceAgeMods.isEmpty()) {
+		if (!modInfo.spaceAgeMods.isEmpty()) {
 			versionText = "Factorio Space Age " + blueprint.version;
 		} else {
 			versionText = "Factorio " + blueprint.version;
@@ -142,6 +141,30 @@ public class GUILayoutBlueprint {
 		lblCredit.color = new Color(51, 48, 48);
 		lblCredit.box = creditBounds;
 		renderTinted(lblCredit);
+
+		if (websiteFrame) {
+			String botCreditText = FactorioPrintsFrame.BOT_CREDIT;
+			Font botCreditFont = guiStyle.FONT_BP_REGULAR.deriveFont(14f);
+			int botCreditWidth = g.getFontMetrics(botCreditFont).stringWidth(botCreditText);
+			GUIBox botCreditBounds = bounds.cutBottom(24).shrinkBottom(2)
+					.cutLeft(bounds.width / 2 + botCreditWidth / 2).cutRight(botCreditWidth);
+			GUILabel lblBotCredit = new GUILabel(botCreditBounds, botCreditText, botCreditFont, Color.black,
+					GUIAlign.CENTER_LEFT);
+			lblBotCredit.color = new Color(43, 41, 41);
+			lblBotCredit.box = botCreditBounds.shift(-1, 0);
+			renderTinted(lblBotCredit);
+			lblBotCredit.box = botCreditBounds.shift(1, 0);
+			renderTinted(lblBotCredit);
+			lblBotCredit.color = new Color(30, 30, 30);
+			lblBotCredit.box = botCreditBounds.shift(0, -1);
+			renderTinted(lblBotCredit);
+			lblBotCredit.color = new Color(96, 94, 94);
+			lblBotCredit.box = botCreditBounds.shift(0, 1);
+			renderTinted(lblBotCredit);
+			lblBotCredit.color = new Color(51, 48, 48);
+			lblBotCredit.box = botCreditBounds;
+			renderTinted(lblBotCredit);
+		}
 	}
 
 	private void drawImagePane(GUIBox bounds) {

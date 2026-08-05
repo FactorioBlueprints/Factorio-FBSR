@@ -10,6 +10,7 @@ final class FactorioPrintsFrame {
 
 	public static final GUISize IMAGE_SIZE = new GUISize(1100, 1100);
 	public static final String WATERMARK = "factorioprints.com";
+	public static final String BOT_CREDIT = "Rendered by Demodude4u's Blueprint Bot";
 
 	private FactorioPrintsFrame() {}
 
