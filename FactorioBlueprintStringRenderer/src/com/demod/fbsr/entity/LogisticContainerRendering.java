@@ -8,6 +8,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.demod.factorio.fakelua.LuaTable;
+import com.demod.factorio.fakelua.LuaValue;
 import com.demod.fbsr.Direction;
 import com.demod.fbsr.EntityType;
 import com.demod.fbsr.ModdingResolver;
@@ -42,7 +43,16 @@ public class LogisticContainerRendering extends BaseContainerRendering {
 	public void defineEntity(Bindings bind, LuaTable lua) {
 		super.defineEntity(bind, lua);
 
-		bind.animation(lua.get("animation"));
+		LuaValue luaAnimation = lua.get("animation");
+		if (!luaAnimation.isnil()) {
+			bind.animation(luaAnimation);
+		} else {
+			// Factorio 2.1 moved the logistic chest graphics into robot_door.animation.
+			LuaValue luaRobotDoor = lua.get("robot_door");
+			if (!luaRobotDoor.isnil()) {
+				bind.animation(luaRobotDoor.get("animation"));
+			}
+		}
 	}
 
 	@Override
