@@ -108,8 +108,12 @@ public class WebAPIService extends AbstractIdleService {
 			try {
 				BSBlueprintString blueprintString = findBlueprintString(body.getString("blueprint"), reporting);
 				Optional<String> websiteTitle = Optional.ofNullable(body.optString("title", null));
+				JSONObject options = body.optJSONObject("options");
+				Optional<Boolean> showGridlines = options != null && options.has("show_gridlines")
+						? Optional.of(options.getBoolean("show_gridlines"))
+						: Optional.empty();
 				BlueprintPreview preview = factorioPrintsFrame
-						? FBSR.renderFactorioPrintsPreview(blueprintString, reporting, websiteTitle)
+						? FBSR.renderFactorioPrintsPreview(blueprintString, reporting, websiteTitle, showGridlines)
 						: FBSR.renderBlueprintPreview(blueprintString, reporting);
 				writePngResponse(response, preview.image);
 				return response;

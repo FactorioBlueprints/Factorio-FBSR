@@ -138,15 +138,29 @@ public class FBSR {
 
 	public static BlueprintPreview renderFactorioPrintsPreview(BSBlueprintString blueprintString,
 			CommandReporting reporting, Optional<String> websiteTitle) throws Exception {
-		return renderBlueprintPreview(blueprintString, reporting, websiteTitle, true);
+		return renderFactorioPrintsPreview(blueprintString, reporting, websiteTitle, Optional.empty());
+	}
+
+	public static BlueprintPreview renderFactorioPrintsPreview(BSBlueprintString blueprintString,
+			CommandReporting reporting, Optional<String> websiteTitle, Optional<Boolean> showGridlines)
+			throws Exception {
+		return renderBlueprintPreview(blueprintString, reporting, websiteTitle, true, showGridlines);
 	}
 
 	private static BlueprintPreview renderBlueprintPreview(BSBlueprintString blueprintString,
 			CommandReporting reporting, Optional<String> websiteTitle, boolean factorioPrintsFrame) throws Exception {
+		return renderBlueprintPreview(blueprintString, reporting, websiteTitle, factorioPrintsFrame,
+				Optional.empty());
+	}
+
+	private static BlueprintPreview renderBlueprintPreview(BSBlueprintString blueprintString,
+			CommandReporting reporting, Optional<String> websiteTitle, boolean factorioPrintsFrame,
+			Optional<Boolean> showGridlines) throws Exception {
 		if (blueprintString.blueprint.isPresent()) {
 			GUILayoutBlueprint layout = new GUILayoutBlueprint();
 			layout.setBlueprint(blueprintString.blueprint.get());
 			layout.setReporting(reporting);
+			layout.setShowGridlines(showGridlines);
 			BufferedImage image = factorioPrintsFrame
 					? layout.generateFactorioPrintsImage(websiteTitle)
 					: layout.generateDiscordImage();

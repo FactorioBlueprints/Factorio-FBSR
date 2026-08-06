@@ -91,6 +91,9 @@ public class GUILayoutBlueprint {
 
 	private Graphics2D g;
 
+	// Unset means: gridlines on for the Discord layout, off for the website frame.
+	private Optional<Boolean> showGridlines = Optional.empty();
+
 	private volatile String lockKey = null;
 
 	private void drawFrame(GUIBox bounds) {
@@ -120,51 +123,48 @@ public class GUILayoutBlueprint {
 		GUILabel lblVersion = new GUILabel(versionBounds, versionText, versionFont, Color.GRAY, GUIAlign.TOP_CENTER);
 		renderTinted(lblVersion);
 
-		String creditText = websiteFrame
-				? FactorioPrintsFrame.WATERMARK
-				: "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
-		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(websiteFrame ? 14f : 10f);
-		int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
-		GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
-		GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
-		lblCredit.color = new Color(43, 41, 41);
-		lblCredit.box = creditBounds.shift(-1, 0);
-		renderTinted(lblCredit);
-		lblCredit.box = creditBounds.shift(1, 0);
-		renderTinted(lblCredit);
-		lblCredit.color = new Color(30, 30, 30);
-		lblCredit.box = creditBounds.shift(0, -1);
-		renderTinted(lblCredit);
-		lblCredit.color = new Color(96, 94, 94);
-		lblCredit.box = creditBounds.shift(0, 1);
-		renderTinted(lblCredit);
-		lblCredit.color = new Color(51, 48, 48);
-		lblCredit.box = creditBounds;
-		renderTinted(lblCredit);
-
 		if (websiteFrame) {
-			String botCreditText = FactorioPrintsFrame.BOT_CREDIT;
-			Font botCreditFont = guiStyle.FONT_BP_REGULAR.deriveFont(14f);
-			int botCreditWidth = g.getFontMetrics(botCreditFont).stringWidth(botCreditText);
-			GUIBox botCreditBounds = bounds.cutBottom(24).shrinkBottom(2)
-					.cutLeft(bounds.width / 2 + botCreditWidth / 2).cutRight(botCreditWidth);
-			GUILabel lblBotCredit = new GUILabel(botCreditBounds, botCreditText, botCreditFont, Color.black,
-					GUIAlign.CENTER_LEFT);
-			lblBotCredit.color = new Color(43, 41, 41);
-			lblBotCredit.box = botCreditBounds.shift(-1, 0);
-			renderTinted(lblBotCredit);
-			lblBotCredit.box = botCreditBounds.shift(1, 0);
-			renderTinted(lblBotCredit);
-			lblBotCredit.color = new Color(30, 30, 30);
-			lblBotCredit.box = botCreditBounds.shift(0, -1);
-			renderTinted(lblBotCredit);
-			lblBotCredit.color = new Color(96, 94, 94);
-			lblBotCredit.box = botCreditBounds.shift(0, 1);
-			renderTinted(lblBotCredit);
-			lblBotCredit.color = new Color(51, 48, 48);
-			lblBotCredit.box = botCreditBounds;
-			renderTinted(lblBotCredit);
+			drawBottomTab(bounds, FactorioPrintsFrame.WATERMARK, GUIAlign.CENTER_LEFT);
+			drawBottomTab(bounds, FactorioPrintsFrame.BOT_CREDIT, GUIAlign.CENTER);
+		} else {
+			String creditText = "BlueprintBot "
+					+ FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
+			Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(10f);
+			int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
+			GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
+			GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
+			lblCredit.color = new Color(43, 41, 41);
+			lblCredit.box = creditBounds.shift(-1, 0);
+			renderTinted(lblCredit);
+			lblCredit.box = creditBounds.shift(1, 0);
+			renderTinted(lblCredit);
+			lblCredit.color = new Color(30, 30, 30);
+			lblCredit.box = creditBounds.shift(0, -1);
+			renderTinted(lblCredit);
+			lblCredit.color = new Color(96, 94, 94);
+			lblCredit.box = creditBounds.shift(0, 1);
+			renderTinted(lblCredit);
+			lblCredit.color = new Color(51, 48, 48);
+			lblCredit.box = creditBounds;
+			renderTinted(lblCredit);
 		}
+	}
+
+	// Bottom badges share the version tab's styling.
+	private void drawBottomTab(GUIBox bounds, String text, GUIAlign align) {
+		Font font = guiStyle.FONT_BP_BOLD.deriveFont(16f);
+		int width = g.getFontMetrics(font).stringWidth(text) + 24;
+		GUIBox tabBounds;
+		if (align == GUIAlign.CENTER_LEFT) {
+			tabBounds = bounds.cutLeft(width + 30).cutBottom(24).expandTop(8).cutTop(16).cutRight(width);
+		} else {
+			tabBounds = bounds.cutBottom(24).expandTop(8).cutTop(16)
+					.cutLeft(bounds.width / 2 + width / 2).cutRight(width);
+		}
+		GUIPanel tabPanel = new GUIPanel(tabBounds, guiStyle.FRAME_TAB);
+		renderTinted(tabPanel);
+		GUILabel lblTab = new GUILabel(tabBounds, text, font, Color.GRAY, GUIAlign.TOP_CENTER);
+		renderTinted(lblTab);
 	}
 
 	private void drawImagePane(GUIBox bounds) {
@@ -203,6 +203,9 @@ public class GUILayoutBlueprint {
 		request.setMaxScale(OptionalDouble.of(2.0));
 		request.setBackground(Optional.empty());
 		request.setDontClipSprites(false);
+		if (!showGridlines.orElse(!websiteFrame)) {
+			request.setGridLines(Optional.empty());
+		}
 
 		try {
 			this.result = FBSR.renderBlueprintQueued(request, lockKey).get();
@@ -623,6 +626,10 @@ public class GUILayoutBlueprint {
 
 	public void setLockKey(String lockKey) {
 		this.lockKey = lockKey;
+	}
+
+	public void setShowGridlines(Optional<Boolean> showGridlines) {
+		this.showGridlines = showGridlines;
 	}
 
 }

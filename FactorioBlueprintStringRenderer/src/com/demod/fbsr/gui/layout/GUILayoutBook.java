@@ -253,50 +253,32 @@ public class GUILayoutBook implements AutoCloseable {
 		GUILabel lblVersion = new GUILabel(versionBounds, versionText, versionFont, Color.GRAY, GUIAlign.TOP_CENTER);
 		renderTinted(g, lblVersion);
 
-		String creditText = websiteFrame
-				? FactorioPrintsFrame.WATERMARK
-				: "BlueprintBot " + FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
-		Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(websiteFrame ? 14f : 10f);
-		int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
-		GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
-		GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
-		lblCredit.color = new Color(43, 41, 41);
-		lblCredit.box = creditBounds.shift(-1, 0);
-		renderTinted(g, lblCredit);
-		lblCredit.box = creditBounds.shift(1, 0);
-		renderTinted(g, lblCredit);
-		lblCredit.color = new Color(30, 30, 30);
-		lblCredit.box = creditBounds.shift(0, -1);
-		renderTinted(g, lblCredit);
-		lblCredit.color = new Color(96, 94, 94);
-		lblCredit.box = creditBounds.shift(0, 1);
-		renderTinted(g, lblCredit);
-		lblCredit.color = new Color(51, 48, 48);
-		lblCredit.box = creditBounds;
-		renderTinted(g, lblCredit);
-
-		if (websiteFrame && !previewSelection.isSampled()) {
-			String botCreditText = FactorioPrintsFrame.BOT_CREDIT;
-			Font botCreditFont = guiStyle.FONT_BP_REGULAR.deriveFont(14f);
-			int botCreditWidth = g.getFontMetrics(botCreditFont).stringWidth(botCreditText);
-			GUIBox botCreditBounds = bounds.cutBottom(24).shrinkBottom(2)
-					.cutLeft(bounds.width / 2 + botCreditWidth / 2).cutRight(botCreditWidth);
-			GUILabel lblBotCredit = new GUILabel(botCreditBounds, botCreditText, botCreditFont, Color.black,
-					GUIAlign.CENTER_LEFT);
-			lblBotCredit.color = new Color(43, 41, 41);
-			lblBotCredit.box = botCreditBounds.shift(-1, 0);
-			renderTinted(g, lblBotCredit);
-			lblBotCredit.box = botCreditBounds.shift(1, 0);
-			renderTinted(g, lblBotCredit);
-			lblBotCredit.color = new Color(30, 30, 30);
-			lblBotCredit.box = botCreditBounds.shift(0, -1);
-			renderTinted(g, lblBotCredit);
-			lblBotCredit.color = new Color(96, 94, 94);
-			lblBotCredit.box = botCreditBounds.shift(0, 1);
-			renderTinted(g, lblBotCredit);
-			lblBotCredit.color = new Color(51, 48, 48);
-			lblBotCredit.box = botCreditBounds;
-			renderTinted(g, lblBotCredit);
+		if (websiteFrame) {
+			drawBottomTab(g, bounds, FactorioPrintsFrame.WATERMARK, true);
+			if (!previewSelection.isSampled()) {
+				drawBottomTab(g, bounds, FactorioPrintsFrame.BOT_CREDIT, false);
+			}
+		} else {
+			String creditText = "BlueprintBot "
+					+ FBSR.getFactorioManager().getProfileVanilla().getFactorioData().getVersion();
+			Font creditFont = guiStyle.FONT_BP_REGULAR.deriveFont(10f);
+			int creditWidth = g.getFontMetrics(creditFont).stringWidth(creditText) + 48;
+			GUIBox creditBounds = bounds.cutLeft(creditWidth).cutBottom(24).shrinkBottom(2).shrinkLeft(24);
+			GUILabel lblCredit = new GUILabel(creditBounds, creditText, creditFont, Color.black, GUIAlign.CENTER_LEFT);
+			lblCredit.color = new Color(43, 41, 41);
+			lblCredit.box = creditBounds.shift(-1, 0);
+			renderTinted(g, lblCredit);
+			lblCredit.box = creditBounds.shift(1, 0);
+			renderTinted(g, lblCredit);
+			lblCredit.color = new Color(30, 30, 30);
+			lblCredit.box = creditBounds.shift(0, -1);
+			renderTinted(g, lblCredit);
+			lblCredit.color = new Color(96, 94, 94);
+			lblCredit.box = creditBounds.shift(0, 1);
+			renderTinted(g, lblCredit);
+			lblCredit.color = new Color(51, 48, 48);
+			lblCredit.box = creditBounds;
+			renderTinted(g, lblCredit);
 		}
 
 		if (previewSelection.isSampled()) {
@@ -310,6 +292,23 @@ public class GUILayoutBook implements AutoCloseable {
 		}
 
 		g.setComposite(pc);
+	}
+
+	// Bottom badges share the version tab's styling.
+	private void drawBottomTab(Graphics2D g, GUIBox bounds, String text, boolean left) {
+		Font font = guiStyle.FONT_BP_BOLD.deriveFont(16f);
+		int width = g.getFontMetrics(font).stringWidth(text) + 24;
+		GUIBox tabBounds;
+		if (left) {
+			tabBounds = bounds.cutLeft(width + 30).cutBottom(24).expandTop(8).cutTop(16).cutRight(width);
+		} else {
+			tabBounds = bounds.cutBottom(24).expandTop(8).cutTop(16)
+					.cutLeft(bounds.width / 2 + width / 2).cutRight(width);
+		}
+		GUIPanel tabPanel = new GUIPanel(tabBounds, guiStyle.FRAME_TAB);
+		renderTinted(g, tabPanel);
+		GUILabel lblTab = new GUILabel(tabBounds, text, font, Color.GRAY, GUIAlign.TOP_CENTER);
+		renderTinted(g, lblTab);
 	}
 
 	private void drawImagePane(Graphics2D g, GUIBox bounds) {
