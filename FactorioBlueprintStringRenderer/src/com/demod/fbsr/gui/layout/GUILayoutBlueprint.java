@@ -492,11 +492,6 @@ public class GUILayoutBlueprint {
 	}
 
 	private void drawTitleBar(GUIBox bounds) {
-		GUIRichText lblTitle = new GUIRichText(bounds.shrinkBottom(6).shrinkLeft(24),
-				title.orElse(""), guiStyle.FONT_BP_BOLD.deriveFont(24f),
-				guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_LEFT, resolver);
-		lblTitle.render(g);
-
 		StringBuilder iconText = new StringBuilder();
 		blueprint.icons.stream().sorted(Comparator.comparing(i -> i.index)).forEach(i -> {
 			TagToken tag = new TagToken(i.signal.type, i.signal.name, i.signal.quality);
@@ -505,6 +500,12 @@ public class GUILayoutBlueprint {
 		GUIRichText lblIcons = new GUIRichText(bounds.shrinkBottom(6).shrinkRight(22),
 				iconText.toString(), guiStyle.FONT_BP_BOLD.deriveFont(24f), guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_RIGHT, resolver);
 		lblIcons.render(g);
+
+		GUIBox titleBounds = bounds.shrinkBottom(6).shrinkLeft(24);
+		double titleSpace = titleBounds.width - lblIcons.getTextWidth(g) - (iconText.length() == 0 ? 24 : 46);
+		GUIRichText lblTitle = FactorioPrintsFrame.fitTitle(g, titleBounds, title.orElse(""),
+				guiStyle.FONT_BP_BOLD.deriveFont(24f), guiStyle.FONT_BP_COLOR, resolver, titleSpace);
+		lblTitle.render(g);
 
 		int startX = bounds.x + (int)lblTitle.getTextWidth(g) + 44;
 		int endX = bounds.x + bounds.width - (int)lblIcons.getTextWidth(g) - (iconText.length() == 0 ? 24 : 46);

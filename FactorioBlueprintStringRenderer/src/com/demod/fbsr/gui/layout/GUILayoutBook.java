@@ -255,8 +255,14 @@ public class GUILayoutBook implements AutoCloseable {
 
 		if (websiteFrame) {
 			drawBottomTab(g, bounds, FactorioPrintsFrame.WATERMARK, true);
-			if (!previewSelection.isSampled()) {
-				drawBottomTab(g, bounds, FactorioPrintsFrame.BOT_CREDIT, false);
+			// A sampled book also reports its blueprint count; both share the centre, so
+			// they are laid out as one centred group rather than dropping the credit.
+			if (previewSelection.isSampled()) {
+				drawCentredBottomTabs(g, bounds, previewSelection.blueprints().size() + " of "
+						+ previewSelection.totalBlueprintCount() + " blueprints shown",
+						FactorioPrintsFrame.BOT_CREDIT);
+			} else {
+				drawCentredBottomTabs(g, bounds, FactorioPrintsFrame.BOT_CREDIT);
 			}
 		} else {
 			String creditText = "BlueprintBot "
@@ -281,7 +287,7 @@ public class GUILayoutBook implements AutoCloseable {
 			renderTinted(g, lblCredit);
 		}
 
-		if (previewSelection.isSampled()) {
+		if (!websiteFrame && previewSelection.isSampled()) {
 			String previewText = previewSelection.blueprints().size() + " of "
 					+ previewSelection.totalBlueprintCount() + " blueprints shown";
 			Font previewFont = guiStyle.FONT_BP_BOLD.deriveFont(12f);
@@ -294,6 +300,8 @@ public class GUILayoutBook implements AutoCloseable {
 		g.setComposite(pc);
 	}
 
+	private static final int BOTTOM_TAB_GAP = 12;
+
 	// Bottom badges share the version tab's styling.
 	private void drawBottomTab(Graphics2D g, GUIBox bounds, String text, boolean left) {
 		Font font = guiStyle.FONT_BP_BOLD.deriveFont(16f);
@@ -305,6 +313,27 @@ public class GUILayoutBook implements AutoCloseable {
 			tabBounds = bounds.cutBottom(24).expandTop(8).cutTop(16)
 					.cutLeft(bounds.width / 2 + width / 2).cutRight(width);
 		}
+		drawBottomTab(g, tabBounds, text, font);
+	}
+
+	private void drawCentredBottomTabs(Graphics2D g, GUIBox bounds, String... texts) {
+		Font font = guiStyle.FONT_BP_BOLD.deriveFont(16f);
+		FontMetrics fm = g.getFontMetrics(font);
+		int[] widths = new int[texts.length];
+		int total = BOTTOM_TAB_GAP * (texts.length - 1);
+		for (int i = 0; i < texts.length; i++) {
+			widths[i] = fm.stringWidth(texts[i]) + 24;
+			total += widths[i];
+		}
+		GUIBox row = bounds.cutBottom(24).expandTop(8).cutTop(16);
+		int x = row.x + (row.width - total) / 2;
+		for (int i = 0; i < texts.length; i++) {
+			drawBottomTab(g, new GUIBox(x, row.y, widths[i], row.height), texts[i], font);
+			x += widths[i] + BOTTOM_TAB_GAP;
+		}
+	}
+
+	private void drawBottomTab(Graphics2D g, GUIBox tabBounds, String text, Font font) {
 		GUIPanel tabPanel = new GUIPanel(tabBounds, guiStyle.FRAME_TAB);
 		renderTinted(g, tabPanel);
 		GUILabel lblTab = new GUILabel(tabBounds, text, font, Color.GRAY, GUIAlign.TOP_CENTER);
@@ -467,11 +496,6 @@ public class GUILayoutBook implements AutoCloseable {
 	}
 
 	private void drawTitleBar(Graphics2D g, GUIBox bounds) {
-		GUIRichText lblTitle = new GUIRichText(bounds.shrinkBottom(6).shrinkLeft(24),
-				title.orElse(""), guiStyle.FONT_BP_BOLD.deriveFont(24f),
-				guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_LEFT, resolver);
-		lblTitle.render(g);
-
 		StringBuilder iconText = new StringBuilder();
 		book.icons.ifPresent(l -> l.stream().sorted(Comparator.comparing(i -> i.index)).forEach(i -> {
 			TagToken tag = new TagToken(i.signal.type, i.signal.name, i.signal.quality);
@@ -480,6 +504,12 @@ public class GUILayoutBook implements AutoCloseable {
 		GUIRichText lblIcons = new GUIRichText(bounds.shrinkBottom(6).shrinkRight(22),
 				iconText.toString(), guiStyle.FONT_BP_BOLD.deriveFont(24f), guiStyle.FONT_BP_COLOR, GUIAlign.CENTER_RIGHT, resolver);
 		lblIcons.render(g);
+
+		GUIBox titleBounds = bounds.shrinkBottom(6).shrinkLeft(24);
+		double titleSpace = titleBounds.width - lblIcons.getTextWidth(g) - (iconText.length() == 0 ? 24 : 46);
+		GUIRichText lblTitle = FactorioPrintsFrame.fitTitle(g, titleBounds, title.orElse(""),
+				guiStyle.FONT_BP_BOLD.deriveFont(24f), guiStyle.FONT_BP_COLOR, resolver, titleSpace);
+		lblTitle.render(g);
 
 		int startX = bounds.x + (int) (lblTitle.getTextWidth(g) + 44);
 		int endX = bounds.x + bounds.width - (int)lblIcons.getTextWidth(g) - (iconText.length() == 0 ? 24 : 46);
