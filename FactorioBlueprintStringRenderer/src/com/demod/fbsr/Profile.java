@@ -99,6 +99,7 @@ public class Profile {
     public static final String ASSETS_ZIP_RENDERING_JSON = "rendering.json";
     public static final String ASSETS_ZIP_MANIFEST_JSON = "manifest.json";
     public static final String ASSETS_ZIP_ATLAS_MANIFEST_JSON = "atlas-manifest.json";
+    public static final String ASSETS_ZIP_MIGRATIONS_JSON = "migrations.json";
 
     public static final Set<String> BUILTIN_MODS = Set.of(
             "core", "base", "space-age", "quality", "elevated-rails", "recycler");
@@ -523,6 +524,15 @@ public class Profile {
         }
 
         return readJsonAssetFile(ASSETS_ZIP_RENDERING_JSON);
+    }
+
+    public FactorioMigrations getAssetsMigrations() {
+        // Asset packages built before migrations were recorded simply do not have the entry.
+        if (!hasAssets() || !hasAssetFile(ASSETS_ZIP_MIGRATIONS_JSON)) {
+            return FactorioMigrations.empty();
+        }
+
+        return FactorioMigrations.fromJson(readJsonAssetFile(ASSETS_ZIP_MIGRATIONS_JSON));
     }
 
     public JSONObject getAssetsAtlasManifest() {
@@ -1576,6 +1586,17 @@ public class Profile {
                 return false;
             }
 
+            {
+                // Rendering has no Factorio install, so the renames it needs for old blueprints
+                // have to travel with the assets.
+                FactorioMigrations migrations = FactorioMigrations
+                        .fromFactorioInstall(FactorioManager.getFactorioInstall());
+                ZipEntry entryMigrations = new ZipEntry(ASSETS_ZIP_MIGRATIONS_JSON);
+                zos.putNextEntry(entryMigrations);
+                zos.write(migrations.toJson().toString(2).getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+
             JSONObject jsonRendering;
             {
                 Profile profileVanilla = Profile.vanilla();
@@ -1801,6 +1822,14 @@ public class Profile {
 
         Collections.sort(mods, Comparator.comparing(mod -> mod.name.toLowerCase()));
         return mods;
+    }
+
+    private boolean hasAssetFile(String assetName) {
+        try (ZipFile zipFile = new ZipFile(fileAssets)) {
+            return zipFile.getEntry(assetName) != null;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     private String readAssetFile(String assetName) {

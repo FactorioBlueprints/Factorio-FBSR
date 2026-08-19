@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -118,6 +119,8 @@ public class FactorioManager {
 	private final ListMultimap<String, AchievementPrototype> achievementByName = ArrayListMultimap.create();
 	private final ListMultimap<String, ItemGroupPrototype> itemGroupByName = ArrayListMultimap.create();
 
+	private List<FactorioMigrations> migrations = Collections.emptyList();
+
 	private FPUtilitySprites utilitySprites;
 
 	private final Cache<String, UnknownEntityRendering> unknownEntityFactories = CacheBuilder.newBuilder()
@@ -147,6 +150,11 @@ public class FactorioManager {
 
 	public List<Profile> getProfiles() {
 		return profiles;
+	}
+
+	/** The prototype renames of every loaded profile that has any, vanilla first. */
+	public List<FactorioMigrations> getMigrations() {
+		return migrations;
 	}
 
 	public IconManager getIconManager() {
@@ -281,6 +289,8 @@ public class FactorioManager {
 			System.out.println("No vanilla profile found!");
 			return false;
 		}
+
+		migrations = profiles.stream().map(Profile::getAssetsMigrations).filter(m -> !m.isEmpty()).toList();
 
 		DataTable baseTable = profileVanilla.getFactorioData().getTable();
 		utilitySprites = new FPUtilitySprites(profileVanilla, baseTable.getRaw("utility-sprites", "default").get());

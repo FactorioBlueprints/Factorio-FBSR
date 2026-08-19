@@ -201,13 +201,39 @@ public abstract class ModdingResolver {
     //////////////////////////////////
 
     public EntityRendererFactory resolveFactoryEntityName(String entityName) {
-        return pickByPrototype(factorioManager.lookupEntityFactoryForName(entityName), EntityRendererFactory::getPrototype)
+        return pickEntityFactory(entityName)
+                .or(() -> pickMigrated(migrations -> migrations.migrateEntityName(entityName), this::pickEntityFactory))
                 .orElseGet(() -> factorioManager.getUnknownEntityRenderingForName(entityName));
     }
 
     public TileRendererFactory resolveFactoryTileName(String tileName) {
-        return pickByPrototype(factorioManager.lookupTileFactoryForName(tileName), TileRendererFactory::getPrototype)
+        return pickTileFactory(tileName)
+                .or(() -> pickMigrated(migrations -> migrations.migrateTileName(tileName), this::pickTileFactory))
                 .orElseGet(() -> factorioManager.getUnknownTileRenderingForName(tileName));
+    }
+
+    private Optional<EntityRendererFactory> pickEntityFactory(String entityName) {
+        return pickByPrototype(factorioManager.lookupEntityFactoryForName(entityName), EntityRendererFactory::getPrototype);
+    }
+
+    private Optional<TileRendererFactory> pickTileFactory(String tileName) {
+        return pickByPrototype(factorioManager.lookupTileFactoryForName(tileName), TileRendererFactory::getPrototype);
+    }
+
+    /**
+     * The factory for the name a blueprint's prototype was renamed to, for blueprints old enough
+     * to still use a retired name. Only reached once the name itself has failed to resolve, which
+     * is what keeps a rename from rewriting a name the current data still uses.
+     */
+    private <T> Optional<T> pickMigrated(Function<FactorioMigrations, Optional<String>> migrate,
+            Function<String, Optional<T>> pickFactory) {
+        for (FactorioMigrations migrations : factorioManager.getMigrations()) {
+            Optional<T> factory = migrate.apply(migrations).flatMap(pickFactory);
+            if (factory.isPresent()) {
+                return factory;
+            }
+        }
+        return Optional.empty();
     }
 
     //////////////////////////////////
