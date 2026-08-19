@@ -1568,12 +1568,9 @@ public class Profile {
             }
         }
 
-        if (fileAssets.exists()) {
-            if (!fileAssets.delete()) {
-                System.out.println("Failed to delete old assets file: " + fileAssets.getAbsolutePath());
-                return false;
-            }
-        }
+        // The previous package is deliberately left in place until the replacement is
+        // complete: deleting it up front means any failure in between, an out of memory kill
+        // in particular, destroys a working package and leaves nothing behind.
 
         boolean success = false;
         try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(fileAssetsTemp))) {
@@ -1632,10 +1629,7 @@ public class Profile {
 
             zos.close();
 
-            if (!fileAssetsTemp.renameTo(fileAssets)) {
-                System.out.println("Failed to rename temp assets file to final assets file: " + fileAssetsTemp.getAbsolutePath() + " ==> " + fileAssets.getAbsolutePath());
-                return false;
-            }
+            Files.move(fileAssetsTemp.toPath(), fileAssets.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             System.out.println("Failed to create assets zip for profile: " + folderProfile.getName());
             e.printStackTrace();
