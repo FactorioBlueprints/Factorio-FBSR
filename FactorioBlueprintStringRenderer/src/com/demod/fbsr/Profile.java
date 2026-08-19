@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -99,6 +100,11 @@ public class Profile {
     public static final String ASSETS_ZIP_RENDERING_JSON = "rendering.json";
     public static final String ASSETS_ZIP_MANIFEST_JSON = "manifest.json";
     public static final String ASSETS_ZIP_ATLAS_MANIFEST_JSON = "atlas-manifest.json";
+
+    // A zip entry defaults to the current wall clock, so two builds of identical inputs
+    // produce packages that differ byte for byte and defeat any checksum built over them.
+    // The earliest instant the DOS timestamp field can hold is the start of 1980.
+    private static final LocalDateTime ASSETS_ZIP_ENTRY_TIME = LocalDateTime.of(1980, 1, 1, 0, 0, 0);
 
     public static final Set<String> BUILTIN_MODS = Set.of(
             "core", "base", "space-age", "quality", "elevated-rails");
@@ -1584,7 +1590,7 @@ public class Profile {
                     return false;
                 }
                 jsonRendering = optJsonRendering.get();
-                ZipEntry entryRendering = new ZipEntry(ASSETS_ZIP_RENDERING_JSON);
+                ZipEntry entryRendering = assetsZipEntry(ASSETS_ZIP_RENDERING_JSON);
                 zos.putNextEntry(entryRendering);
                 zos.write(jsonRendering.toString(2).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
@@ -1596,7 +1602,7 @@ public class Profile {
                     System.out.println("Failed to populate assets for profile: " + folderProfile.getName());
                     return false;
                 }
-                ZipEntry entryAtlasManifest = new ZipEntry(ASSETS_ZIP_ATLAS_MANIFEST_JSON);
+                ZipEntry entryAtlasManifest = assetsZipEntry(ASSETS_ZIP_ATLAS_MANIFEST_JSON);
                 zos.putNextEntry(entryAtlasManifest);
                 zos.write(jsonAtlasManifest.toString(2).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
@@ -1621,13 +1627,23 @@ public class Profile {
         return true;
     }
 
+    // Every asset package entry goes through here so that no writer reintroduces a clock.
+    // setTimeLocal pins the DOS timestamp without converting it, but Java still derives an
+    // extended timestamp extra field from it through the default zone, so a package that is
+    // byte-identical across machines also needs the build to pin TZ.
+    public static ZipEntry assetsZipEntry(String zipEntryName) {
+        ZipEntry entry = new ZipEntry(zipEntryName);
+        entry.setTimeLocal(ASSETS_ZIP_ENTRY_TIME);
+        return entry;
+    }
+
     private static boolean copyIntoZip(ZipOutputStream zos, File file, String zipEntryName) {
         if (!file.exists()) {
             System.out.println("File " + file.getAbsolutePath() + " does not exist. Cannot copy into zip.");
             return false;
         }
         try (FileInputStream fis = new FileInputStream(file)) {
-            ZipEntry entry = new ZipEntry(zipEntryName);
+            ZipEntry entry = assetsZipEntry(zipEntryName);
             zos.putNextEntry(entry);
             byte[] buffer = new byte[8192];
             int bytesRead;
