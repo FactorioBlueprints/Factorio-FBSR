@@ -1381,18 +1381,10 @@ public class Profile {
             return false;
         }
 
-        if (!FactorioManager.hasModPortalApi()) {
-            System.out.println("Mod Portal API is not configured. Cannot download mods.");
-            return false;
-        }
-
         folderBuildMods.mkdirs();
 
-        String username = FactorioManager.getModPortalApiUsername();
-        String password = FactorioManager.getModPortalApiPassword();
-
         String authString = null;
-        
+
         JSONObject jsonManifest = readJsonFile(fileManifest);
         JSONObject jsonZips = jsonManifest.optJSONObject("zips");
         if (jsonZips != null) {
@@ -1400,12 +1392,20 @@ public class Profile {
                 JSONArray jsonZip = jsonZips.getJSONArray(key);
                 String downloadUrl = jsonZip.optString(0);
                 String sha1 = jsonZip.optString(1);
-                
+
                 File target = new File(folderBuildMods, key);
                 if (!target.exists()) {
+                    // Checked here rather than up front, so that a profile whose mods are all
+                    // present already succeeds offline. Reporting failure for a mod folder that
+                    // needs nothing made every credential-less build look broken.
+                    if (!FactorioManager.hasModPortalApi()) {
+                        System.out.println("Mod Portal API is not configured. Cannot download " + key + ".");
+                        return false;
+                    }
                     try {
                         if (authString == null) {
-                            authString = FactorioModPortal.getAuthParams(username, password);
+                            authString = FactorioModPortal.getAuthParams(FactorioManager.getModPortalApiUsername(),
+                                    FactorioManager.getModPortalApiPassword());
                         }
 
                         FactorioModPortal.downloadModDirect(target, downloadUrl, sha1, authString);
