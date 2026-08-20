@@ -1594,7 +1594,7 @@ public class Profile {
                 // have to travel with the assets.
                 FactorioMigrations migrations = FactorioMigrations
                         .fromFactorioInstall(FactorioManager.getFactorioInstall());
-                ZipEntry entryMigrations = new ZipEntry(ASSETS_ZIP_MIGRATIONS_JSON);
+                ZipEntry entryMigrations = assetsZipEntry(ASSETS_ZIP_MIGRATIONS_JSON);
                 zos.putNextEntry(entryMigrations);
                 zos.write(migrations.toJson().toString(2).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
