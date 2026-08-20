@@ -1256,7 +1256,8 @@ public class Profile {
         }
 
         cleanDump();
-        deleteAssets();
+        // Generating a manifest is the first of four stages, so deleting the package here
+        // stranded the profile whenever any later stage failed.
 
         JSONObject jsonProfile = readJsonFile(fileProfileConfig);
         JSONArray jsonProfileMods = jsonProfile.optJSONArray("mods");
@@ -1430,7 +1431,9 @@ public class Profile {
 
         cleanInvalidDownloads();
         cleanDump();
-        deleteAssets();
+        // The existing package is not deleted here. Downloading is the first of three stages,
+        // and a failure in any of them used to leave the profile with no package at all.
+        // createAssets replaces it atomically once a complete replacement exists.
 
         if (modLoader != null) {
             modLoader.reload();
@@ -1461,7 +1464,8 @@ public class Profile {
             return false;
         }
 
-        deleteAssets();
+        // The existing package survives the dump too; atlas population can still fail after
+        // a successful dump, and the profile is better off stale than empty until then.
 
         folderBuildData.mkdirs();
 
