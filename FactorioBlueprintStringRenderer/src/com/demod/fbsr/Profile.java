@@ -1594,10 +1594,11 @@ public class Profile {
             }
 
             {
-                // Rendering has no Factorio install, so the renames it needs for old blueprints
-                // have to travel with the assets.
+                // Rendering has neither the Factorio install nor the mods, so the renames it
+                // needs for old blueprints have to travel with the assets.
                 FactorioMigrations migrations = FactorioMigrations
-                        .fromFactorioInstall(FactorioManager.getFactorioInstall());
+                        .fromFactorioInstall(FactorioManager.getFactorioInstall())
+                        .andThen(FactorioMigrations.fromMods(folderBuildMods));
                 ZipEntry entryMigrations = assetsZipEntry(ASSETS_ZIP_MIGRATIONS_JSON);
                 zos.putNextEntry(entryMigrations);
                 zos.write(migrations.toJson().toString(2).getBytes(StandardCharsets.UTF_8));

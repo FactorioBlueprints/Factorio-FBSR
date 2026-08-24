@@ -1,16 +1,21 @@
 package com.demod.fbsr;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -22,12 +27,13 @@ import org.json.JSONObject;
  * A blueprint string records the prototype names that existed when it was exported, so a
  * blueprint saved before a rename still says {@code filter-inserter} where the current data has
  * {@code fast-inserter}. The game fixes those names up on import using the migration files in
- * {@code data/<mod>/migrations}. Without the same fix-up, every renamed prototype in an old
- * blueprint renders as unknown.
+ * {@code data/<mod>/migrations}, and mods ship migrations of their own the same way. Without the
+ * same fix-up, every renamed prototype in an old blueprint renders as unknown.
  *
  * <p>
- * The renames are read from the Factorio installation while a profile is built and stored in the
- * profile's asset package, so rendering itself still needs no installation.
+ * The renames are read from the Factorio installation and from the profile's mods while a profile
+ * is built, and stored in the profile's asset package, so rendering itself still needs neither an
+ * installation nor the mods.
  *
  * <p>
  * Each migration file is one step, and a name is migrated by running it through every step in
@@ -46,38 +52,55 @@ import org.json.JSONObject;
  */
 public class FactorioMigrations {
 
+	// The sections that name something a blueprint can contain. Migration files also rename
+	// recipes, technologies and the like, which are of no use when rendering one.
 	private static final String SECTION_ENTITY = "entity";
 	private static final String SECTION_TILE = "tile";
+	private static final String SECTION_ITEM = "item";
+	private static final List<String> SECTIONS = List.of(SECTION_ENTITY, SECTION_TILE, SECTION_ITEM);
+
 	private static final String JSON_STEPS = "steps";
 	private static final String JSON_SOURCE = "source";
+
+	private static final String MIGRATION_SUFFIX = ".json";
+
+	/** Migrations of a mod zip live one folder down, in a folder named for the mod. */
+	private static final String MOD_ZIP_MIGRATION_PATH = "[^/]+/migrations/[^/]+";
 
 	/** The renames of a single migration file, applied as one simultaneous substitution. */
 	private static class Step {
 		private final String source;
-		private final Map<String, String> entityRenames;
-		private final Map<String, String> tileRenames;
+		private final Map<String, Map<String, String>> renamesBySection;
 
-		private Step(String source, Map<String, String> entityRenames, Map<String, String> tileRenames) {
+		private Step(String source, Map<String, Map<String, String>> renamesBySection) {
 			this.source = source;
-			this.entityRenames = entityRenames;
-			this.tileRenames = tileRenames;
+			this.renamesBySection = renamesBySection;
+		}
+
+		private static Step read(String source, JSONObject json) {
+			Map<String, Map<String, String>> renamesBySection = new LinkedHashMap<>();
+			for (String section : SECTIONS) {
+				Map<String, String> renames = readSection(json.opt(section));
+				if (!renames.isEmpty()) {
+					renamesBySection.put(section, renames);
+				}
+			}
+			return new Step(source, renamesBySection);
 		}
 
 		private boolean isEmpty() {
-			return entityRenames.isEmpty() && tileRenames.isEmpty();
+			return renamesBySection.isEmpty();
+		}
+
+		private String rename(String section, String name) {
+			return renamesBySection.getOrDefault(section, Map.of()).get(name);
 		}
 
 		private JSONObject toJson() {
 			JSONObject json = new JSONObject();
 			json.put(JSON_SOURCE, source);
-			json.put(SECTION_ENTITY, new JSONObject(entityRenames));
-			json.put(SECTION_TILE, new JSONObject(tileRenames));
+			renamesBySection.forEach((section, renames) -> json.put(section, new JSONObject(renames)));
 			return json;
-		}
-
-		private static Step fromJson(JSONObject json) {
-			return new Step(json.optString(JSON_SOURCE, ""), readSection(json.opt(SECTION_ENTITY)),
-					readSection(json.opt(SECTION_TILE)));
 		}
 	}
 
@@ -97,36 +120,81 @@ public class FactorioMigrations {
 	 */
 	public static FactorioMigrations fromFactorioInstall(File factorioInstall) {
 		List<Step> steps = new ArrayList<>();
-		File[] modFolders = new File(factorioInstall, "data").listFiles(File::isDirectory);
-		if (modFolders == null) {
-			return empty();
+		for (File modFolder : listSorted(new File(factorioInstall, "data"), File::isDirectory)) {
+			readModFolder(modFolder.getName(), new File(modFolder, "migrations"), steps);
 		}
-		Arrays.sort(modFolders);
-		for (File modFolder : modFolders) {
-			File[] migrationFiles = new File(modFolder, "migrations")
-					.listFiles(file -> file.getName().endsWith(".json"));
-			if (migrationFiles == null) {
-				continue;
-			}
-			Arrays.sort(migrationFiles);
-			for (File migrationFile : migrationFiles) {
-				String source = modFolder.getName() + "/" + migrationFile.getName();
-				JSONObject json;
-				try {
-					json = new JSONObject(
-							new String(Files.readAllBytes(migrationFile.toPath()), StandardCharsets.UTF_8));
-				} catch (IOException | RuntimeException e) {
-					System.out.println("Skipping unreadable migration file " + source + ": " + e.getMessage());
-					continue;
-				}
-				Step step = new Step(source, readSection(json.opt(SECTION_ENTITY)),
-						readSection(json.opt(SECTION_TILE)));
-				if (!step.isEmpty()) {
-					steps.add(step);
-				}
+		return new FactorioMigrations(steps);
+	}
+
+	/**
+	 * Reads the migrations of every mod in a mods folder, whether the mod is a zip or unpacked.
+	 * Mods carry far more renames than the game itself does.
+	 */
+	public static FactorioMigrations fromMods(File folderMods) {
+		List<Step> steps = new ArrayList<>();
+		for (File mod : listSorted(folderMods, file -> true)) {
+			if (mod.isDirectory()) {
+				readModFolder(mod.getName(), new File(mod, "migrations"), steps);
+			} else if (mod.getName().endsWith(".zip")) {
+				readModZip(mod, steps);
 			}
 		}
 		return new FactorioMigrations(steps);
+	}
+
+	private static void readModFolder(String modName, File folderMigrations, List<Step> steps) {
+		for (File migrationFile : listSorted(folderMigrations, file -> file.getName().endsWith(MIGRATION_SUFFIX))) {
+			String source = modName + "/" + migrationFile.getName();
+			try {
+				addStep(steps, source, Files.readAllBytes(migrationFile.toPath()));
+			} catch (IOException | RuntimeException e) {
+				reportSkipped(source, e);
+			}
+		}
+	}
+
+	/**
+	 * A mod zip holds a single top level folder named for the mod, which some mods version and
+	 * others do not, so the migrations are found by shape rather than by a known path.
+	 */
+	private static void readModZip(File fileMod, List<Step> steps) {
+		try (ZipFile zipFile = new ZipFile(fileMod)) {
+			List<? extends ZipEntry> entries = zipFile.stream()
+					.filter(entry -> entry.getName().endsWith(MIGRATION_SUFFIX))
+					.filter(entry -> entry.getName().matches(MOD_ZIP_MIGRATION_PATH))
+					.sorted(Comparator.comparing(ZipEntry::getName))
+					.toList();
+			for (ZipEntry entry : entries) {
+				String source = fileMod.getName() + ":" + entry.getName();
+				try (InputStream is = zipFile.getInputStream(entry)) {
+					addStep(steps, source, is.readAllBytes());
+				} catch (IOException | RuntimeException e) {
+					reportSkipped(source, e);
+				}
+			}
+		} catch (IOException | RuntimeException e) {
+			reportSkipped(fileMod.getName(), e);
+		}
+	}
+
+	private static void addStep(List<Step> steps, String source, byte[] contents) {
+		Step step = Step.read(source, new JSONObject(new String(contents, StandardCharsets.UTF_8)));
+		if (!step.isEmpty()) {
+			steps.add(step);
+		}
+	}
+
+	private static void reportSkipped(String source, Exception e) {
+		System.out.println("Skipping unreadable migrations in " + source + ": " + e.getMessage());
+	}
+
+	private static File[] listSorted(File folder, FileFilter filter) {
+		File[] files = folder.listFiles(filter);
+		if (files == null) {
+			return new File[0];
+		}
+		Arrays.sort(files);
+		return files;
 	}
 
 	/** Migration files write renames either as an array of old-new pairs, or as an object. */
@@ -152,12 +220,20 @@ public class FactorioMigrations {
 		return renames;
 	}
 
+	/** The renames of this followed by those of {@code later}. Neither side is modified. */
+	public FactorioMigrations andThen(FactorioMigrations later) {
+		List<Step> combined = new ArrayList<>(steps);
+		combined.addAll(later.steps);
+		return new FactorioMigrations(combined);
+	}
+
 	public static FactorioMigrations fromJson(JSONObject json) {
 		List<Step> steps = new ArrayList<>();
 		JSONArray jsonSteps = json.optJSONArray(JSON_STEPS);
 		if (jsonSteps != null) {
 			for (int i = 0; i < jsonSteps.length(); i++) {
-				steps.add(Step.fromJson(jsonSteps.getJSONObject(i)));
+				JSONObject jsonStep = jsonSteps.getJSONObject(i);
+				steps.add(Step.read(jsonStep.optString(JSON_SOURCE, ""), jsonStep));
 			}
 		}
 		return new FactorioMigrations(steps);
@@ -176,17 +252,21 @@ public class FactorioMigrations {
 	 * migration renames it.
 	 */
 	public Optional<String> migrateEntityName(String entityName) {
-		return migrate(entityName, step -> step.entityRenames);
+		return migrate(SECTION_ENTITY, entityName);
 	}
 
 	public Optional<String> migrateTileName(String tileName) {
-		return migrate(tileName, step -> step.tileRenames);
+		return migrate(SECTION_TILE, tileName);
 	}
 
-	private Optional<String> migrate(String name, java.util.function.Function<Step, Map<String, String>> section) {
+	public Optional<String> migrateItemName(String itemName) {
+		return migrate(SECTION_ITEM, itemName);
+	}
+
+	private Optional<String> migrate(String section, String name) {
 		String current = name;
 		for (Step step : steps) {
-			String renamed = section.apply(step).get(current);
+			String renamed = step.rename(section, current);
 			if (renamed != null) {
 				current = renamed;
 			}
