@@ -185,6 +185,11 @@ public abstract class ModdingResolver {
     //////////////////////////////////
 
     public Optional<ItemPrototype> resolveItemName(String itemName) {
+        return pickItem(itemName)
+                .or(() -> pickMigrated(migrations -> migrations.migrateItemName(itemName), this::pickItem));
+    }
+
+    private Optional<ItemPrototype> pickItem(String itemName) {
         return pickPrototype(factorioManager.lookupItemByName(itemName));
     }
 
@@ -201,13 +206,39 @@ public abstract class ModdingResolver {
     //////////////////////////////////
 
     public EntityRendererFactory resolveFactoryEntityName(String entityName) {
-        return pickByPrototype(factorioManager.lookupEntityFactoryForName(entityName), EntityRendererFactory::getPrototype)
+        return pickEntityFactory(entityName)
+                .or(() -> pickMigrated(migrations -> migrations.migrateEntityName(entityName), this::pickEntityFactory))
                 .orElseGet(() -> factorioManager.getUnknownEntityRenderingForName(entityName));
     }
 
     public TileRendererFactory resolveFactoryTileName(String tileName) {
-        return pickByPrototype(factorioManager.lookupTileFactoryForName(tileName), TileRendererFactory::getPrototype)
+        return pickTileFactory(tileName)
+                .or(() -> pickMigrated(migrations -> migrations.migrateTileName(tileName), this::pickTileFactory))
                 .orElseGet(() -> factorioManager.getUnknownTileRenderingForName(tileName));
+    }
+
+    private Optional<EntityRendererFactory> pickEntityFactory(String entityName) {
+        return pickByPrototype(factorioManager.lookupEntityFactoryForName(entityName), EntityRendererFactory::getPrototype);
+    }
+
+    private Optional<TileRendererFactory> pickTileFactory(String tileName) {
+        return pickByPrototype(factorioManager.lookupTileFactoryForName(tileName), TileRendererFactory::getPrototype);
+    }
+
+    /**
+     * Resolves the name a blueprint's prototype was renamed to, for blueprints old enough to
+     * still use a retired name. Only reached once the name itself has failed to resolve, which is
+     * what keeps a rename from rewriting a name the current data still uses.
+     */
+    private <T> Optional<T> pickMigrated(Function<FactorioMigrations, Optional<String>> migrate,
+            Function<String, Optional<T>> pick) {
+        for (FactorioMigrations migrations : factorioManager.getMigrations()) {
+            Optional<T> resolved = migrate.apply(migrations).flatMap(pick);
+            if (resolved.isPresent()) {
+                return resolved;
+            }
+        }
+        return Optional.empty();
     }
 
     //////////////////////////////////
@@ -219,6 +250,11 @@ public abstract class ModdingResolver {
     }
 
     public Optional<IconDef> resolveIconItemName(String name) {
+        return pickIconItem(name)
+                .or(() -> pickMigrated(migrations -> migrations.migrateItemName(name), this::pickIconItem));
+    }
+
+    private Optional<IconDef> pickIconItem(String name) {
         return pickImageDef(factorioManager.getIconManager().lookupItem(name));
     }
 
