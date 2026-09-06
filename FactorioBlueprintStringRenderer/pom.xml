@@ -5,6 +5,12 @@
 	<groupId>com.demod.fbsr</groupId>
 	<artifactId>FactorioBlueprintStringRenderer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<properties>
+		<!-- Maven stamps archive entries with the build's wall clock, so two builds of identical
+		     sources produce jars that differ byte for byte. A fixed instant makes the build
+		     reproducible, which is what lets a checksum over the output mean anything. -->
+		<project.build.outputTimestamp>2025-01-21T04:02:21Z</project.build.outputTimestamp>
+	</properties>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<testSourceDirectory>tests</testSourceDirectory>
