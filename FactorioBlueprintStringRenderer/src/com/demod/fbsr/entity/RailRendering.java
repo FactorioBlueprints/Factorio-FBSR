@@ -12,6 +12,7 @@ import com.demod.fbsr.EntityRendererFactory;
 import com.demod.fbsr.FPUtils;
 import com.demod.fbsr.Layer;
 import com.demod.fbsr.Dir16;
+import com.demod.fbsr.Direction;
 import com.demod.fbsr.WorldMap;
 import com.demod.fbsr.bs.BSEntity;
 import com.demod.fbsr.bs.entity.BSRailEntity;
@@ -219,6 +220,26 @@ public abstract class RailRendering extends EntityWithOwnerRendering {
 		}
 	}
 
+	/**
+	 * The direction a rail's artwork and rail piece are looked up under.
+	 *
+	 * <p>Curved rails define all eight orientations and use the direction as given. Straight and
+	 * half-diagonal rails are unchanged by a half turn, so Factorio ships artwork for north,
+	 * northeast, east and southeast only and leaves the opposite four empty; those override this to
+	 * fold a direction onto its opposite. Factorio normally writes one of the first four, but a
+	 * segment laid in the opposite direction of travel can be serialized as one of the others.
+	 */
+	protected Direction railDirection(Direction direction) {
+		return direction;
+	}
+
+	/**
+	 * Folds a direction onto its opposite, for rails whose shape is unchanged by a half turn.
+	 */
+	public static Direction foldHalfTurn(Direction direction) {
+		return Direction.values()[direction.ordinal() % 4];
+	}
+
 	@Override
 	public Class<? extends BSEntity> getEntityClass() {
 		return BSRailEntity.class;
@@ -239,7 +260,7 @@ public abstract class RailRendering extends EntityWithOwnerRendering {
 	public void createRenderers(Consumer<MapRenderable> register, WorldMap map, MapEntity entity) {
 		super.createRenderers(register, map, entity);
 
-		FPRailPieceLayers railPieceLayers = protoPictures.get(entity.getDirection());
+		FPRailPieceLayers railPieceLayers = protoPictures.get(railDirection(entity.getDirection()));
 		if (railPieceLayers.stonePathBackground.isPresent()) {
 			railPieceLayers.stonePathBackground.get()
 					.defineSprites(entity.spriteRegister(register, layerRailStoneBackground), VARIATION);

@@ -3,6 +3,7 @@ package com.demod.fbsr.entity;
 import java.util.List;
 
 import com.demod.fbsr.Dir16;
+import com.demod.fbsr.Direction;
 import com.demod.fbsr.EntityType;
 import com.demod.fbsr.map.MapEntity;
 import com.demod.fbsr.map.MapRect;
@@ -34,7 +35,12 @@ public class HalfDiagonalRailRendering extends RailRendering {
 	}
 
 	@Override
+	protected Direction railDirection(Direction direction) {
+		return foldHalfTurn(direction);
+	}
+
+	@Override
 	protected RailDef getRailDef(MapEntity entity) {
-		return railDefs.get(entity.getDirection().ordinal());
+		return railDefs.get(railDirection(entity.getDirection()).ordinal());
 	}
 }
