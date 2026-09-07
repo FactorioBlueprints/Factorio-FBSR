@@ -58,8 +58,12 @@ import com.demod.fbsr.gui.part.GUIRichText;
 import com.demod.fbsr.gui.part.GUIRichTextArea;
 import com.demod.fbsr.map.MapUnknownEntityMarker;
 import com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GUILayoutBlueprint {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(GUILayoutBlueprint.class);
 
 	// Discord messages at 100% scale embed images at 550x350
 	// This is double so it has a nice zoom but also crisp in detail
@@ -209,9 +213,21 @@ public class GUILayoutBlueprint {
 
 		try {
 			this.result = FBSR.renderBlueprintQueued(request, lockKey).get();
-		} catch (InterruptedException | ExecutionException e) {
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 			reporting.addException(e);
-			return;
+			throw new IllegalStateException("Interrupted while rendering the blueprint.", e);
+		} catch (ExecutionException e) {
+			// Returning here would leave the frame, title and item panel already drawn and hand back
+			// an image that looks like a blueprint with nothing built in it. That is worse than an
+			// error: it is indistinguishable from a genuinely empty blueprint, and it reaches the
+			// caller as a success. The report below only goes to Discord, which is off in some
+			// deployments, so log it too and fail the request.
+			reporting.addException(e);
+			LOGGER.error("Failed to render the blueprint map; returning an error instead of an empty frame.",
+					e.getCause() != null ? e.getCause() : e);
+			throw new IllegalStateException("Failed to render the blueprint map.",
+					e.getCause() != null ? e.getCause() : e);
 		}
 
 		GUIImage image = new GUIImage(bounds, result.image, true);
