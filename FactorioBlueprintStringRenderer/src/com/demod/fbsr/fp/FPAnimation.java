@@ -89,6 +89,12 @@ public class FPAnimation extends FPAnimationParameters {
 			return;
 		}
 
+		// An animation with no filename has no artwork to draw. Vanilla always supplies one, but a
+		// mod entity that omits the field is asking to draw nothing, not to fail the build.
+		if (isEmpty()) {
+			return;
+		}
+
 		consumer.accept(defineSprite(frame));
 	}
 

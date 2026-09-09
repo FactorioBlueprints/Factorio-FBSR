@@ -55,6 +55,11 @@ public class FPAnimationParameters extends FPSpriteParameters {
 		return defs.get(frame);
 	}
 
+	/** True when the prototype named no artwork, so there is no sprite to define. */
+	public boolean isEmpty() {
+		return defs.isEmpty();
+	}
+
 	public int getFrameCount() {
 		return frameCount;
 	}

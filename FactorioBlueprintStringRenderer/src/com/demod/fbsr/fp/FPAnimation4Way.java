@@ -52,7 +52,9 @@ public class FPAnimation4Way {
 		if (animation.isPresent()) {
 			animation.get().defineSprites(consumer, frame);
 		} else {
-			directional.get(direction.ordinal()).get().defineSprites(consumer, frame);
+			// A train stop defines animations but no rail_overlay_animations, leaving every
+			// direction of the absent field empty. Draw nothing rather than failing the build.
+			directional.get(direction.ordinal()).ifPresent(fp -> fp.defineSprites(consumer, frame));
 		}
 	}
 

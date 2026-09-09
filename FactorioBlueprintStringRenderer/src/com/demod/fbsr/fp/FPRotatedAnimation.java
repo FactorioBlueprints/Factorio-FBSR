@@ -114,6 +114,11 @@ public class FPRotatedAnimation extends FPAnimationParameters {
 			}
 			return defs;
 
+		} else if (!filename.isPresent()) {
+			// No stripes, no filenames and no filename: the prototype named no artwork at all.
+			// A rail signal that sits on water has no rail_piece to draw, and that is not an error.
+			return ImmutableList.of();
+
 		} else {
 			List<List<SpriteDef>> defs = new ArrayList<>();
 			for (int index = 0; index < directionCount; index++) {

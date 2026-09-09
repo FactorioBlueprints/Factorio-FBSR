@@ -91,6 +91,12 @@ public class FPRotatedSprite extends FPSpriteParameters {
 			return ImmutableList.of();
 		}
 
+		// Neither filenames nor filename: the prototype named no artwork. A mod locomotive whose
+		// visible hull is a separate entity does exactly this, and it should draw nothing.
+		if (!filenames.isPresent()) {
+			return ImmutableList.of();
+		}
+
 		List<SpriteDef> defs = new ArrayList<>();
 
 		for (int index = 0; index < directionCount; index++) {

@@ -45,8 +45,8 @@ public abstract class RailSignalBaseRendering extends EntityWithOwnerRendering {
 		int direction = entity.fromBlueprint().directionRaw;
 		int align = direction * 12;
 
-		int railPieceFrame = pictureSet.railPiece.alignToFrameIndex.get(align);
-		pictureSet.railPiece.sprites.defineSprites(shiftedRegister, railPieceFrame);
+		pictureSet.railPiece.frameIndexFor(align)
+				.ifPresent(frame -> pictureSet.railPiece.sprites.defineSprites(shiftedRegister, frame));
 
 		int structureIndex = pictureSet.structureAlignToAnimationIndex.get(align);
 		pictureSet.structure.defineSprites(shiftedRegister, structureIndex, FRAME);
@@ -86,8 +86,8 @@ public abstract class RailSignalBaseRendering extends EntityWithOwnerRendering {
 			for (int direction = 0; direction < 16; direction++) {
 				int align = direction * 12;
 
-				int railPieceFrame = pictureSet.railPiece.alignToFrameIndex.get(align);
-				pictureSet.railPiece.sprites.defineSprites(register, railPieceFrame);
+				pictureSet.railPiece.frameIndexFor(align)
+						.ifPresent(frame -> pictureSet.railPiece.sprites.defineSprites(register, frame));
 
 				int structureIndex = pictureSet.structureAlignToAnimationIndex.get(align);
 				pictureSet.structure.defineSprites(register, structureIndex, FRAME);
