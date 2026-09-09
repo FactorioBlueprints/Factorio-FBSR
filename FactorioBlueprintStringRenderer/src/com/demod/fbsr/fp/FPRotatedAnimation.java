@@ -51,6 +51,46 @@ public class FPRotatedAnimation extends FPAnimationParameters {
 		FPUtils.verifyNotNull(lua.getDebugPath() + " defs", defs);
 	}
 
+	/**
+	 * Where each cell of each stripe sheet lands in the direction-major sprite array.
+	 *
+	 * <p>Cells are listed in reading order: every stripe in turn, each row left to right. A slot of
+	 * -1 means the sheets supply more artwork than the prototype declares, so the cell is unused.
+	 *
+	 * <p>Vanilla gives a direction one row of animation frames, so a stripe's row selects the
+	 * direction and its column selects the frame; the character's 26 frames arrive as two 13-wide
+	 * stripes that way. A sheet with no animation frames at all cannot mean that, because there is
+	 * only ever frame 0 to select. Such a sheet is a grid of directions read row by row, which is
+	 * how cargo-ships packs a boat's 256 rotations into one 16x16 sheet.
+	 */
+	static int[] stripeSlots(int directionCount, int frameCount, List<FPStripe> stripes) {
+		int cells = 0;
+		for (FPStripe stripe : stripes) {
+			cells += stripe.widthInFrames * stripe.heightInFrames;
+		}
+
+		int[] slots = new int[cells];
+		int capacity = directionCount * frameCount;
+		int cell = 0;
+		int stripeRow = 0, stripeCol = 0;
+		int direction = 0;
+		for (FPStripe stripe : stripes) {
+			for (int row = 0; row < stripe.heightInFrames; row++) {
+				for (int col = 0; col < stripe.widthInFrames; col++) {
+					int slot = frameCount == 1 ? direction++ : (stripeRow + row) * frameCount + (stripeCol + col);
+					slots[cell++] = slot < capacity ? slot : -1;
+				}
+			}
+
+			stripeCol += stripe.widthInFrames;
+			if (stripeCol == frameCount) {
+				stripeCol = 0;
+				stripeRow += stripe.heightInFrames;
+			}
+		}
+		return slots;
+	}
+
 	private List<List<SpriteDef>> createDefs(Profile profile) {
 		if (layers.isPresent()) {
 			return ImmutableList.of();
@@ -59,7 +99,8 @@ public class FPRotatedAnimation extends FPAnimationParameters {
 		if (stripes.isPresent()) {
 
 			SpriteDef[] defArray = new SpriteDef[directionCount * frameCount];
-			int stripeRow = 0, stripeCol = 0;
+			int[] slots = stripeSlots(directionCount, frameCount, stripes.get());
+			int cell = 0;
 			for (FPStripe stripe : stripes.get()) {
 
 				for (int row = 0; row < stripe.heightInFrames; row++) {
@@ -67,18 +108,14 @@ public class FPRotatedAnimation extends FPAnimationParameters {
 						int x = stripe.x + width * col;
 						int y = stripe.y + height * row;
 
-						int frame = stripeCol + col;
-						int index = stripeRow + row;
-						defArray[index * frameCount + frame] = SpriteDef.fromFP(profile, stripe.filename, drawAsShadow,
+						int slot = slots[cell++];
+						if (slot < 0) {
+							continue;
+						}
+						defArray[slot] = SpriteDef.fromFP(profile, stripe.filename, drawAsShadow,
 								blendMode, tint, tintAsOverlay, applyRuntimeTint, x, y, width, height, shift.x, shift.y,
 								scale);
 					}
-				}
-
-				stripeCol += stripe.widthInFrames;
-				if (stripeCol == frameCount) {
-					stripeCol = 0;
-					stripeRow += stripe.heightInFrames;
 				}
 			}
 
