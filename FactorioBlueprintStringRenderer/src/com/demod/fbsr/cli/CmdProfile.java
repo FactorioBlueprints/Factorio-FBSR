@@ -858,7 +858,12 @@ public class CmdProfile {
             @Option(names = {"-f", "-force"}, description = "Force regeneration of the manifest, even if it already exists") boolean force
     ) {
         profileSelect.forEach((profile, result) -> {
-            if (profile.buildManifest(force)) {
+            // Having a manifest already is the ordinary case, not a failure. Reporting it as one
+            // printed "Failed to build manifest" on every successful build and left a real
+            // manifest failure indistinguishable from routine noise.
+            if (!force && profile.hasManifest()) {
+                result.println("Manifest already present for profile: " + profile.getName());
+            } else if (profile.buildManifest(force)) {
                 result.println("Manifest built successfully for profile: " + profile.getName());
             } else {
                 result.println("Failed to build manifest for profile: " + profile.getName());
