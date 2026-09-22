@@ -17,6 +17,7 @@ import javax.imageio.ImageIO;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.rapidoid.config.Conf;
 import org.rapidoid.http.MediaType;
 import org.rapidoid.http.Req;
 import org.rapidoid.http.Resp;
@@ -42,6 +43,9 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import net.dv8tion.jda.api.entities.MessageEmbed.Field;
 
 public class WebAPIService extends AbstractIdleService {
+
+	/** Bounds Rapidoid's job pool; see the comment in startUp(). */
+	private static final int JOB_POOL_THREADS = 16;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(WebAPIService.class);
 
@@ -145,6 +149,15 @@ public class WebAPIService extends AbstractIdleService {
 
 		String address = config.webapi.bind;
 		int port = config.webapi.port;
+
+		// Rapidoid's bundled default is a 256-thread job pool whose core threads are created
+		// on demand and never retired: it never calls allowCoreThreadTimeOut, so the 300s
+		// keep-alive only applies to threads above the core size. Rendering is serial per
+		// request, so those threads are never useful, but they accumulate at roughly two per
+		// request until the pool is full and then hold their stacks for the life of the
+		// process. Under a container PID or memory limit that is fatal rather than merely
+		// wasteful. Must be set before the first job is submitted.
+		Conf.JOBS.sub("executor").set("threads", JOB_POOL_THREADS);
 
 		On.address(address).port(port);
 
