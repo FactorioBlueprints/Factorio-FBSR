@@ -557,17 +557,16 @@ public class AtlasPackage {
 		}
 	}
 
-    private static Rectangle trimEmptyRect(BufferedImage imageSheet, Rectangle rect) {
+    static Rectangle trimEmptyRect(BufferedImage imageSheet, Rectangle rect) {
 		Rectangle ret = new Rectangle(rect.width, rect.height);
-		
-		//Rare modding issue
-		if (ret.width > imageSheet.getWidth()) {
-			ret.width = imageSheet.getWidth();
+
+		//Rare modding issue: only the part of the rect that lies on the sheet has pixels to scan
+		ret.width = Math.min(ret.width, imageSheet.getWidth() - rect.x);
+		ret.height = Math.min(ret.height, imageSheet.getHeight() - rect.y);
+		if (ret.width <= 0 || ret.height <= 0) { // 1x1 transparent
+			return new Rectangle(rect.x, rect.y, 1, 1);
 		}
-		if (ret.height > imageSheet.getHeight()) {
-			ret.height = imageSheet.getHeight();
-		}
-		
+
 		int[] pixels = new int[ret.width * ret.height];
 		int span = ret.width;
 		imageSheet.getRGB(rect.x, rect.y, ret.width, ret.height, pixels, 0, span);
