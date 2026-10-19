@@ -342,6 +342,21 @@ public class CmdConfig {
         System.out.println("Configuration reloaded from file: " + Config.FILE.getAbsolutePath());
     }
 
+    static Optional<File> factorioInstallIn(File dir) {
+        if (!dir.isDirectory()) {
+            return Optional.empty();
+        }
+        // Steam on macOS nests the install in an app bundle, and Factorio reads its data relative to Contents.
+        File macAppContents = new File(dir, "factorio.app/Contents");
+        if (macAppContents.isDirectory()) {
+            return FactorioData.getFactorioExecutable(macAppContents).exists() ? Optional.of(macAppContents) : Optional.empty();
+        }
+        if (FactorioData.getFactorioExecutable(dir).exists()) {
+            return Optional.of(dir);
+        }
+        return Optional.empty();
+    }
+
     private static Optional<String> findDefaultFactorioInstall() {
         List<String> searchDirs = new ArrayList<>(List.of(
             "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Factorio",
@@ -359,12 +374,7 @@ public class CmdConfig {
         List<String> foundPaths = new ArrayList<>();
         for (String dirPath : searchDirs) {
             File dir = new File(dirPath);
-            if (dir.exists() && dir.isDirectory()) {
-                File factorioExecutable = FactorioData.getFactorioExecutable(dir);
-                if (factorioExecutable.exists()) {
-                    foundPaths.add(dir.getAbsolutePath());
-                }
-            }
+            factorioInstallIn(dir).ifPresent(install -> foundPaths.add(install.getAbsolutePath()));
         }
 
         if (foundPaths.isEmpty()) {
