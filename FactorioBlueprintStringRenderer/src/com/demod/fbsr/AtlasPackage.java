@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
+import javax.imageio.spi.IIORegistry;
 import javax.imageio.stream.ImageOutputStream;
 
 import org.json.JSONArray;
@@ -57,6 +59,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 import com.google.common.io.Files;
+import com.luciad.imageio.webp.WebPImageReaderSpi;
+import com.luciad.imageio.webp.WebPImageWriterSpi;
 import com.luciad.imageio.webp.WebPWriteParam;
 
 public class AtlasPackage {
@@ -315,7 +319,7 @@ public class AtlasPackage {
 			String filename = "atlas" + atlas.getId() + ".webp";
 			zos.putNextEntry(Profile.assetsZipEntry(filename));
 
-			ImageWriter writer = ImageIO.getImageWritersByMIMEType("image/webp").next();
+			ImageWriter writer = webPWriter();
 			try {
 				try (ImageOutputStream ios = ImageIO.createImageOutputStream(zos)) {
 					writer.setOutput(ios);
@@ -445,12 +449,32 @@ public class AtlasPackage {
 		return mismatched.isEmpty();
 	}
 
+	// ImageIO discovers the WebP codec from service files on the classpath, which a repackaged jar or a
+	// separate class loader can hide, so register the codec by hand when discovery missed it.
+	static ImageWriter webPWriter() {
+		Iterator<ImageWriter> writers = ImageIO.getImageWritersByMIMEType("image/webp");
+		if (writers.hasNext()) {
+			return writers.next();
+		}
+		LOGGER.warn("WebP writer was not discovered, registering it manually");
+		IIORegistry.getDefaultInstance().registerServiceProvider(new WebPImageWriterSpi());
+		return ImageIO.getImageWritersByMIMEType("image/webp").next();
+	}
+
+	static void registerWebPReader() {
+		if (!ImageIO.getImageReadersByMIMEType("image/webp").hasNext()) {
+			LOGGER.warn("WebP reader was not discovered, registering it manually");
+			IIORegistry.getDefaultInstance().registerServiceProvider(new WebPImageReaderSpi());
+		}
+	}
+
 	public BufferedImage[] readAtlases(int... atlasIds) {
 		if (atlasIds.length == 0) {
 			return new BufferedImage[0];
 		}
 
 		LOGGER.info("Reading {} atlas {}", fileAssetsZip.getName(), Arrays.toString(atlasIds));
+		registerWebPReader();
 
 		BufferedImage[] images = new BufferedImage[atlasIds.length];
 		try (ZipFile zip = new ZipFile(fileAssetsZip)) {
