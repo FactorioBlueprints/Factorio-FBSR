@@ -3,6 +3,7 @@ package com.demod.fbsr.entity;
 import java.util.function.Consumer;
 
 import com.demod.factorio.fakelua.LuaTable;
+import com.demod.factorio.fakelua.LuaValue;
 import com.demod.fbsr.EntityType;
 import com.demod.fbsr.Layer;
 import com.demod.fbsr.WorldMap;
@@ -21,13 +22,24 @@ public class GeneratorRendering extends EntityWithOwnerRendering {
 	public void defineEntity(Bindings bind, LuaTable lua) {
 		super.defineEntity(bind, lua);
 
-		bind.animation(lua.get("vertical_animation")).conditional((map, entity) -> {
+		bind.animation(animation(lua, true)).conditional((map, entity) -> {
 			return isVertical(entity);
 		});
-		bind.animation(lua.get("horizontal_animation")).conditional((map, entity) -> {
+		bind.animation(animation(lua, false)).conditional((map, entity) -> {
 			return !isVertical(entity);
 		});
 		bind.fluidBox(lua.get("fluid_box"));
+	}
+
+	// Factorio 2.1 moved the artwork from vertical_animation/horizontal_animation into
+	// pictures.north.animation/pictures.east.animation.
+	static LuaValue animation(LuaTable lua, boolean vertical) {
+		LuaValue pictures = lua.get("pictures");
+		if (pictures.isnil()) {
+			return lua.get(vertical ? "vertical_animation" : "horizontal_animation");
+		}
+		LuaValue direction = pictures.get(vertical ? "north" : "east");
+		return direction.isnil() ? LuaValue.NIL : direction.get("animation");
 	}
 
 	private boolean isVertical(MapEntity entity) {
